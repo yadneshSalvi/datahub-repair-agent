@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
   ChevronDown,
@@ -63,7 +64,17 @@ function ToolChip({ event }: { event: RunEvent }) {
   )
 }
 
-function RunTimeline({ events, status }: { events: RunEvent[]; status: 'running' | 'succeeded' | 'failed' }) {
+function RunTimeline({
+  events,
+  status,
+  completedStages,
+  failedStage,
+}: {
+  events: RunEvent[]
+  status: 'running' | 'succeeded' | 'failed'
+  completedStages: string[]
+  failedStage: string | null
+}) {
   const [expanded, setExpanded] = useState<Set<RunPhase>>(new Set(['detect', 'impact']))
   const visibleEvents = events.filter((event) => event.level !== 'debug' || event.data.tool)
   const lastPhase = visibleEvents.at(-1)?.phase
@@ -83,8 +94,16 @@ function RunTimeline({ events, status }: { events: RunEvent[]; status: 'running'
     <div className="relative">
       {phaseDefinitions.map((phase, index) => {
         const phaseEvents = visibleEvents.filter((event) => event.phase === phase.id)
-        const isDone = status === 'succeeded' || index < activeIndex
-        const isFailed = status === 'failed' && index === activeIndex
+        // Tick a phase only when the backend says it genuinely produced output. Inferring
+        // completion from position meant a failed run showed green checks next to work that
+        // never happened. 'done' has no artifact of its own, so it follows the run status.
+        const completed = new Set(completedStages)
+        const isDone =
+          phase.id === 'done' ? status === 'succeeded' : completed.has(phase.id)
+        const isFailed =
+          status === 'failed' &&
+          (failedStage ? phase.id === failedStage : index === activeIndex) &&
+          !isDone
         const isActive = status === 'running' && index === activeIndex
         const hasActivity = phaseEvents.length > 0
         const first = phaseEvents[0] ? new Date(phaseEvents[0].ts).getTime() : startedAt
@@ -301,11 +320,33 @@ export function ControlRoom() {
             </div>
           </Card>
 
+          {currentRun?.status === 'failed' && (
+            <div className="mt-3 rounded-[10px] border border-danger/40 bg-danger/[0.07] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="size-3.5 shrink-0 text-danger" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-danger">
+                  Repair run failed{currentRun.failed_stage ? ` at the ${currentRun.failed_stage} stage` : ''}
+                </span>
+              </div>
+              <p className="m-0 mt-1.5 text-[11px] leading-5 text-text-dim">
+                {currentRun.error ?? 'The run did not complete. Inspect the timeline below for the failing stage.'}
+              </p>
+              <p className="m-0 mt-1.5 text-[10px] leading-4 text-text-faint">
+                The figures below describe an incomplete run and must not be read as a clean bill of health.
+              </p>
+            </div>
+          )}
+
           {currentRun?.impact && (
             <div className="mt-3 grid grid-cols-4 gap-2">
               <SummaryCard label="Require patch" value={currentRun.impact.stats.requires_patch ?? 0} color="patch" />
               <SummaryCard label="No code change" value={currentRun.impact.stats.downstream_unaffected ?? 0} color="unaffected" />
-              <SummaryCard label="Correctly skipped" value={currentRun.impact.stats.skipped ?? 0} color="skipped" />
+              {/* Only claim the skips were CORRECT when the run actually succeeded. */}
+              <SummaryCard
+                label={currentRun.status === 'succeeded' ? 'Correctly skipped' : 'Skipped (unverified)'}
+                value={currentRun.impact.stats.skipped ?? 0}
+                color="skipped"
+              />
               <SummaryCard label="References validated" value={`${counts.resolved}/${counts.total}`} color="ok" />
             </div>
           )}
@@ -320,7 +361,7 @@ export function ControlRoom() {
             {currentRun && <Badge variant={currentRun.status === 'succeeded' ? 'ok' : currentRun.status === 'failed' ? 'danger' : 'accent'}>{currentRun.events.length} events</Badge>}
           </div>
           {currentRunLoading ? <LoadingPanel rows={5} className="border-0 bg-transparent p-0 shadow-none" /> : currentRun ? (
-            <RunTimeline events={currentRun.events} status={currentRun.status} />
+            <RunTimeline events={currentRun.events} status={currentRun.status} completedStages={currentRun.completed_stages ?? []} failedStage={currentRun.failed_stage ?? null} />
           ) : (
             <EmptyState icon={Clock3} title="Waiting for a repair run" detail="Apply a drift scenario, then start the agent to see DataHub MCP calls and validation gates here." className="min-h-[330px] border-0 bg-transparent" />
           )}

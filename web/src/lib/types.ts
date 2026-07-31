@@ -149,6 +149,11 @@ export interface RunEvent {
 export interface RepairRun {
   id: string
   status: RunStatus
+  /** Populated whenever status is 'failed' — never render a failed run as a success. */
+  error: string | null
+  failed_stage: string | null
+  /** Phases that genuinely produced output; drives the timeline ticks. */
+  completed_stages: string[]
   degraded: boolean
   degradations: string[]
   drift: DriftEvent | null

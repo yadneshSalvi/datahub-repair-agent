@@ -37,6 +37,14 @@ class CodeMapMissing(RuntimeError):
     """Raised when catalog lineage finds impacted code that cannot be located."""
 
 
+class LineageUnavailable(RuntimeError):
+    """Raised when DataHub's lineage index cannot answer, so the blast radius is unknown.
+
+    Deliberately distinct from "nothing is affected". Reporting an empty impact set when the
+    index is merely lagging would tell a reviewer their pipeline is safe when it is not.
+    """
+
+
 class ImpactEngine:
     """Compute a precise blast radius from DataHub evidence and exact SQL references."""
 
@@ -67,6 +75,17 @@ class ImpactEngine:
 
         assert drift.old_column is not None
         expected = self._aspect_declared_downstreams(drift)
+        if not expected and not self._aspect_declares_any_edge_from(drift.dataset_urn):
+            # Nothing anywhere declares an edge out of the drifted dataset. On a seeded
+            # ShopFlow catalog that is impossible, so the catalog is unseeded or was wiped
+            # mid-run. Fail here rather than let every asset fall through to SKIPPED.
+            raise LineageUnavailable(
+                f"No dataset in the catalog declares any column-level lineage from "
+                f"{drift.dataset_name}. The ShopFlow catalog looks unseeded or was modified "
+                "mid-run, so the blast radius cannot be computed. Run `make seed verify` and "
+                "retry — reporting an empty impact set here would wrongly imply nothing is "
+                "affected."
+            )
         column_hits: list[Any] = []
         table_hits: list[Any] = []
         for attempt in range(self.LINEAGE_SETTLE_ATTEMPTS):
@@ -89,16 +108,40 @@ class ImpactEngine:
                 time.sleep(self.LINEAGE_SETTLE_SECONDS)
         missing = expected - {hit.urn for hit in column_hits}
         if missing:
-            LOGGER.warning(
-                "DataHub's lineage search still omits %d dataset(s) that declare a column edge "
-                "from %s.%s (%s). Proceeding with the search result; re-run if the impact set "
-                "looks short.",
-                len(missing),
-                drift.dataset_name,
-                drift.old_column,
-                ", ".join(sorted(_asset_name(urn) for urn in missing)),
+            # Refuse to answer rather than answer wrongly. Silently returning a short (or
+            # empty) blast radius is this tool's most dangerous failure: the UI would render
+            # "N models correctly skipped" and a reviewer would conclude nothing is broken.
+            raise LineageUnavailable(
+                f"DataHub's lineage search still omits {len(missing)} dataset(s) whose lineage "
+                f"aspects declare a column edge from {drift.dataset_name}.{drift.old_column} "
+                f"({', '.join(sorted(_asset_name(urn) for urn in missing))}), after waiting "
+                f"{self.LINEAGE_SETTLE_ATTEMPTS * self.LINEAGE_SETTLE_SECONDS:.0f}s for the graph "
+                "index to settle. Refusing to report an incomplete blast radius — re-run once "
+                "DataHub has caught up."
+            )
+        if not column_hits and table_hits:
+            raise LineageUnavailable(
+                f"DataHub reports {len(table_hits)} downstream dataset(s) of "
+                f"{drift.dataset_name} but no column-level lineage at all for "
+                f"`{drift.old_column}`. Those answers cannot both be true, so the column-lineage "
+                "index is unavailable rather than genuinely empty. Refusing to report that "
+                "nothing is affected."
             )
         return column_hits, table_hits
+
+    def _aspect_declares_any_edge_from(self, dataset_urn: str) -> bool:
+        """True if any mapped dataset declares a column edge out of ``dataset_urn``.
+
+        Index-independent sanity check on the catalog itself, used to tell "this column is
+        genuinely unused" apart from "the catalog is not seeded".
+        """
+
+        source = dataset_urn.lower()
+        for urn in self.code_map["datasets"]:
+            for edge in self._fgl_cache.get(urn, []):
+                if edge.upstream_urn.lower() == source:
+                    return True
+        return False
 
     def _aspect_declared_downstreams(self, drift: DriftEvent) -> set[str]:
         """Datasets whose own lineage ASPECTS declare a direct edge from the drifted column.

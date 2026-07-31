@@ -239,6 +239,14 @@ class RepairRun(BaseModel):
 
     id: str
     status: Literal["running", "succeeded", "failed"] = "running"
+    #: Human-readable reason the run failed. Set whenever ``status == "failed"`` so a
+    #: failure can never render as a quiet, plausible-looking success.
+    error: str | None = None
+    #: Which phase failed (``detect``/``impact``/``codegen``/``validate``/``pr``/``writeback``).
+    failed_stage: str | None = None
+    #: Phases that actually produced their output, so a UI can tick only real progress
+    #: instead of assuming every step succeeded.
+    completed_stages: list[str] = Field(default_factory=list)
     degraded: bool = False
     degradations: list[str] = Field(default_factory=list)
     drift: DriftEvent | None = None

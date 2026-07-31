@@ -2,13 +2,19 @@ UV_CACHE_DIR ?= /private/tmp/uv-cache
 RUN := env -u VIRTUAL_ENV UV_CACHE_DIR=$(UV_CACHE_DIR) uv run
 SCENARIO ?= rename_order_placed_at
 
-.PHONY: setup seed verify simulate test lint preflight
+API_PORT ?= 8002
+WEB_PORT ?= 3002
+
+.PHONY: setup seed verify simulate test lint preflight demo backend frontend examples stop
 
 setup:
 	@echo "Setting up the Python 3.11 environment with uv..."
 	@command -v uv >/dev/null 2>&1 || { echo "ERROR: uv is required. Install it from https://docs.astral.sh/uv/ and retry 'make setup'."; exit 1; }
 	@env -u VIRTUAL_ENV UV_CACHE_DIR=$(UV_CACHE_DIR) uv sync || { echo "ERROR: dependency sync failed. Check Python 3.11 availability and network access, then retry."; exit 1; }
-	@echo "Setup complete. Run 'make seed' to load the ShopFlow catalog."
+	@echo "Installing the web dependencies with npm..."
+	@command -v npm >/dev/null 2>&1 || { echo "ERROR: npm is required for the web UI. Install Node 18+ and retry 'make setup'."; exit 1; }
+	@cd web && npm install --silent || { echo "ERROR: npm install failed in web/. Check Node 18+ and network access, then retry."; exit 1; }
+	@echo "Setup complete. Run 'make seed' to load the ShopFlow catalog, then 'make demo'."
 
 preflight:
 	@echo "Checking that DataHub GMS is reachable..."
@@ -33,4 +39,36 @@ test:
 lint:
 	@echo "Linting the Python source, scripts, and tests..."
 	@$(RUN) ruff check src/ scripts/ tests/ || { echo "ERROR: lint failed. Run the printed ruff fixes, then retry 'make lint'."; exit 1; }
+
+examples:
+	@echo "Regenerating examples/ from real engine runs (this mutates DataHub and reverts)..."
+	@$(RUN) repair-agent examples || { echo "ERROR: example generation failed. Run 'make seed verify' first, then retry."; exit 1; }
+
+backend: preflight
+	@echo "Starting the repair-agent API on http://localhost:$(API_PORT) ..."
+	@$(RUN) uvicorn --app-dir src repair_agent.api.app:app --port $(API_PORT) --host 127.0.0.1
+
+frontend:
+	@echo "Starting the web UI on http://localhost:$(WEB_PORT) ..."
+	@test -d web/node_modules || { echo "ERROR: web/node_modules is missing. Run 'make setup' first."; exit 1; }
+	@cd web && npm run dev
+
+# One command for the full demo: starts the API in the background, waits for it to answer,
+# then runs the UI in the foreground so Ctrl-C stops everything.
+demo: preflight
+	@test -d web/node_modules || { echo "ERROR: web/node_modules is missing. Run 'make setup' first."; exit 1; }
+	@echo "Starting the repair-agent API on http://localhost:$(API_PORT) ..."
+	@$(RUN) uvicorn --app-dir src repair_agent.api.app:app --port $(API_PORT) --host 127.0.0.1 > .repair-agent/api.log 2>&1 & echo $$! > .repair-agent/api.pid
+	@printf "Waiting for the API"; \
+	  for i in $$(seq 1 60); do \
+	    if curl -sf http://127.0.0.1:$(API_PORT)/api/health >/dev/null 2>&1; then echo " ready."; break; fi; \
+	    printf "."; sleep 1; \
+	    if [ $$i -eq 60 ]; then echo; echo "ERROR: the API did not become healthy. See .repair-agent/api.log"; exit 1; fi; \
+	  done
+	@echo "API:  http://localhost:$(API_PORT)/api/health"
+	@echo "UI:   http://localhost:$(WEB_PORT)   (Ctrl-C stops both)"
+	@trap '$(MAKE) stop' EXIT INT TERM; cd web && npm run dev
+
+stop:
+	@if [ -f .repair-agent/api.pid ]; then kill $$(cat .repair-agent/api.pid) 2>/dev/null || true; rm -f .repair-agent/api.pid; echo "Stopped the repair-agent API."; fi
 

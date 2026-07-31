@@ -26,6 +26,9 @@ function placeholderRun(id: string): RepairRun {
   return {
     id,
     status: 'running',
+    error: null,
+    failed_stage: null,
+    completed_stages: [],
     degraded: false,
     degradations: [],
     drift: null,

@@ -125,8 +125,32 @@ async def run_repair(
 
         valid = bool(active_run.patches) and all(patch.valid for patch in active_run.patches)
         active_run.status = "succeeded" if valid and active_run.pr is not None and active_run.pr.ok else "failed"
+        if active_run.status == "failed" and not active_run.error:
+            # A run that reached the end without an exception can still be a failure — no
+            # patches, an invalid patch, or a blocked PR. Name the reason explicitly so the
+            # UI can never present it as a quiet success.
+            if not active_run.patches:
+                active_run.failed_stage = "codegen"
+                active_run.error = (
+                    "No patches were generated. A drift was active, so an empty repair set means "
+                    "the impact analysis or codegen stage did not complete — not that the code is "
+                    "already correct."
+                )
+            elif not valid:
+                blocked = [patch.file_path for patch in active_run.patches if not patch.valid]
+                active_run.failed_stage = "validate"
+                active_run.error = (
+                    f"{len(blocked)} patch(es) failed the column-reference validation gate and were "
+                    f"blocked from the pull request: {', '.join(blocked)}."
+                )
+            else:
+                active_run.failed_stage = "pr"
+                pr_error = active_run.pr.error if active_run.pr else None
+                active_run.error = pr_error or "The pull request could not be opened."
     except Exception as exc:
         active_run.status = "failed"
+        active_run.failed_stage = active_run.failed_stage or _current_stage(active_run)
+        active_run.error = str(exc)
         context.emit(
             phase="done",
             level="error",
@@ -135,17 +159,62 @@ async def run_repair(
         )
         LOGGER.exception("Repair run %s failed", run_id)
     active_run.finished_at = datetime.now(UTC)
+    active_run.completed_stages = _completed_stages(active_run)
     context.emit(
         phase="done",
         level="info" if active_run.status == "succeeded" else "error",
-        title="Repair run complete" if active_run.status == "succeeded" else "Repair run incomplete",
+        title="Repair run complete" if active_run.status == "succeeded" else "Repair run FAILED",
         detail=(
             f"Status {active_run.status}; {len(active_run.patches)} patches, "
             f"{len(active_run.writeback)} DataHub write-back actions, degraded={active_run.degraded}."
+            + (f" Failure ({active_run.failed_stage}): {active_run.error}" if active_run.error else "")
         ),
-        data={"status": active_run.status, "degraded": active_run.degraded},
+        data={
+            "status": active_run.status,
+            "degraded": active_run.degraded,
+            "error": active_run.error,
+            "failed_stage": active_run.failed_stage,
+        },
     )
     return active_run
+
+
+def _current_stage(run: RepairRun) -> str:
+    """The stage that was in flight when the run failed.
+
+    Derived from artifacts rather than events: the last event is usually the terminal
+    "done" frame, which names no real stage. The first stage that produced no output is
+    the one that broke.
+    """
+
+    completed = set(_completed_stages(run))
+    for stage in ("detect", "impact", "codegen", "validate", "pr", "writeback"):
+        if stage not in completed:
+            return stage
+    return "done"
+
+
+def _completed_stages(run: RepairRun) -> list[str]:
+    """Stages that genuinely produced output, judged by artifacts rather than by events.
+
+    The UI ticks these. Deriving them from real artifacts is what stops a failed run from
+    showing green checkmarks next to work that never happened.
+    """
+
+    done: list[str] = []
+    if run.drift is not None:
+        done.append("detect")
+    if run.impact is not None:
+        done.append("impact")
+    if run.patches:
+        done.append("codegen")
+    if run.patches and all(patch.valid for patch in run.patches):
+        done.append("validate")
+    if run.pr is not None and run.pr.ok:
+        done.append("pr")
+    if run.writeback and all(action.ok for action in run.writeback):
+        done.append("writeback")
+    return done
 
 
 async def _run_with_model_fallback(context: RunContext) -> None:
