@@ -1,0 +1,63 @@
+datasets:
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/staging/stg_orders.sql
+    schema_yml: demo-warehouse/models/staging/schema.yml
+    model_name: stg_orders
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_customers,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/staging/stg_customers.sql
+    schema_yml: demo-warehouse/models/staging/schema.yml
+    model_name: stg_customers
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_order_items,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/staging/stg_order_items.sql
+    schema_yml: demo-warehouse/models/staging/schema.yml
+    model_name: stg_order_items
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_products,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/staging/stg_products.sql
+    schema_yml: demo-warehouse/models/staging/schema.yml
+    model_name: stg_products
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_web_events,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/staging/stg_web_events.sql
+    schema_yml: demo-warehouse/models/staging/schema.yml
+    model_name: stg_web_events
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/marts/fct_orders.sql
+    schema_yml: demo-warehouse/models/marts/schema.yml
+    model_name: fct_orders
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_customers,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/marts/dim_customers.sql
+    schema_yml: demo-warehouse/models/marts/schema.yml
+    model_name: dim_customers
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_products,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/marts/dim_products.sql
+    schema_yml: demo-warehouse/models/marts/schema.yml
+    model_name: dim_products
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/marts/mart_daily_revenue.sql
+    schema_yml: demo-warehouse/models/marts/schema.yml
+    model_name: mart_daily_revenue
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/marts/mart_customer_ltv.sql
+    schema_yml: demo-warehouse/models/marts/schema.yml
+    model_name: mart_customer_ltv
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_product_performance,PROD)":
+    kind: dbt_model
+    sql: demo-warehouse/models/marts/mart_product_performance.sql
+    schema_yml: demo-warehouse/models/marts/schema.yml
+    model_name: mart_product_performance
+
+datajobs:
+  "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)":
+    kind: airflow_task
+    file: demo-warehouse/dags/shopflow_daily.py
+    sql_constants: [RECENT_ORDERS_SQL]
+

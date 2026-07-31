@@ -1,0 +1,643 @@
+{
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)": {
+    "order_id": {
+      "name": "order_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable order primary key.",
+      "nullable": false
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Customer who placed the order.",
+      "nullable": false
+    },
+    "order_placed_at": {
+      "name": "order_placed_at",
+      "native_type": "TIMESTAMP_NTZ",
+      "data_type": "time",
+      "description": "Timestamp at which the order was placed.",
+      "nullable": false
+    },
+    "order_status": {
+      "name": "order_status",
+      "native_type": "VARCHAR(32)",
+      "data_type": "string",
+      "description": "Current lifecycle status of the order.",
+      "nullable": false
+    },
+    "gross_amount": {
+      "name": "gross_amount",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Gross order value before discounts.",
+      "nullable": false
+    },
+    "discount_amount": {
+      "name": "discount_amount",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Discount applied to the order.",
+      "nullable": true
+    },
+    "currency_code": {
+      "name": "currency_code",
+      "native_type": "VARCHAR(3)",
+      "data_type": "string",
+      "description": "ISO currency code for the order value.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)": {
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable customer primary key.",
+      "nullable": false
+    },
+    "email": {
+      "name": "email",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer email address classified as PII.",
+      "nullable": false
+    },
+    "full_name": {
+      "name": "full_name",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer full name classified as PII.",
+      "nullable": false
+    },
+    "signup_date": {
+      "name": "signup_date",
+      "native_type": "DATE",
+      "data_type": "date",
+      "description": "Date the customer registered.",
+      "nullable": false
+    },
+    "country_code": {
+      "name": "country_code",
+      "native_type": "VARCHAR(2)",
+      "data_type": "string",
+      "description": "Two-letter customer country code.",
+      "nullable": false
+    },
+    "marketing_opt_in": {
+      "name": "marketing_opt_in",
+      "native_type": "BOOLEAN",
+      "data_type": "boolean",
+      "description": "Whether marketing contact is permitted.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.order_items,PROD)": {
+    "order_item_id": {
+      "name": "order_item_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable order-line primary key.",
+      "nullable": false
+    },
+    "order_id": {
+      "name": "order_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Parent order identifier.",
+      "nullable": false
+    },
+    "product_id": {
+      "name": "product_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Purchased product identifier.",
+      "nullable": false
+    },
+    "quantity": {
+      "name": "quantity",
+      "native_type": "NUMBER(10,0)",
+      "data_type": "number",
+      "description": "Number of product units purchased.",
+      "nullable": false
+    },
+    "unit_price": {
+      "name": "unit_price",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Price per product unit at purchase time.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.products,PROD)": {
+    "product_id": {
+      "name": "product_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable product primary key.",
+      "nullable": false
+    },
+    "sku": {
+      "name": "sku",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchant stock-keeping unit.",
+      "nullable": false
+    },
+    "product_name": {
+      "name": "product_name",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer-facing product name.",
+      "nullable": false
+    },
+    "category": {
+      "name": "category",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchandising category.",
+      "nullable": false
+    },
+    "list_price": {
+      "name": "list_price",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Current catalog list price.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.web_events,PROD)": {
+    "event_id": {
+      "name": "event_id",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Stable event identifier.",
+      "nullable": false
+    },
+    "session_id": {
+      "name": "session_id",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Browser session identifier.",
+      "nullable": false
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Known customer identifier when authenticated.",
+      "nullable": true
+    },
+    "event_type": {
+      "name": "event_type",
+      "native_type": "VARCHAR(32)",
+      "data_type": "string",
+      "description": "Storefront interaction category.",
+      "nullable": false
+    },
+    "event_at": {
+      "name": "event_at",
+      "native_type": "TIMESTAMP_NTZ",
+      "data_type": "time",
+      "description": "Timestamp at which the event occurred.",
+      "nullable": false
+    },
+    "page_url": {
+      "name": "page_url",
+      "native_type": "VARCHAR(1024)",
+      "data_type": "string",
+      "description": "Storefront URL associated with the event.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)": {
+    "order_id": {
+      "name": "order_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable order primary key.",
+      "nullable": false
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Customer who placed the order.",
+      "nullable": false
+    },
+    "order_placed_at": {
+      "name": "order_placed_at",
+      "native_type": "TIMESTAMP_NTZ",
+      "data_type": "time",
+      "description": "Timestamp at which the order was placed.",
+      "nullable": false
+    },
+    "order_status": {
+      "name": "order_status",
+      "native_type": "VARCHAR(32)",
+      "data_type": "string",
+      "description": "Current lifecycle status of the order.",
+      "nullable": false
+    },
+    "gross_amount": {
+      "name": "gross_amount",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Gross order value before discounts.",
+      "nullable": false
+    },
+    "net_amount": {
+      "name": "net_amount",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Gross value less any discount.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_customers,PROD)": {
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable customer primary key.",
+      "nullable": false
+    },
+    "email": {
+      "name": "email",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer email address classified as PII.",
+      "nullable": false
+    },
+    "full_name": {
+      "name": "full_name",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer full name classified as PII.",
+      "nullable": false
+    },
+    "signup_date": {
+      "name": "signup_date",
+      "native_type": "DATE",
+      "data_type": "date",
+      "description": "Date the customer registered.",
+      "nullable": false
+    },
+    "country_code": {
+      "name": "country_code",
+      "native_type": "VARCHAR(2)",
+      "data_type": "string",
+      "description": "Two-letter customer country code.",
+      "nullable": false
+    },
+    "marketing_opt_in": {
+      "name": "marketing_opt_in",
+      "native_type": "BOOLEAN",
+      "data_type": "boolean",
+      "description": "Whether marketing contact is permitted.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_order_items,PROD)": {
+    "order_item_id": {
+      "name": "order_item_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable order-line primary key.",
+      "nullable": false
+    },
+    "order_id": {
+      "name": "order_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Parent order identifier.",
+      "nullable": false
+    },
+    "product_id": {
+      "name": "product_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Purchased product identifier.",
+      "nullable": false
+    },
+    "quantity": {
+      "name": "quantity",
+      "native_type": "NUMBER(10,0)",
+      "data_type": "number",
+      "description": "Number of product units purchased.",
+      "nullable": false
+    },
+    "unit_price": {
+      "name": "unit_price",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Price per product unit at purchase time.",
+      "nullable": false
+    },
+    "line_total": {
+      "name": "line_total",
+      "native_type": "NUMBER(22,2)",
+      "data_type": "number",
+      "description": "Quantity multiplied by unit price.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_products,PROD)": {
+    "product_id": {
+      "name": "product_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable product primary key.",
+      "nullable": false
+    },
+    "sku": {
+      "name": "sku",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchant stock-keeping unit.",
+      "nullable": false
+    },
+    "product_name": {
+      "name": "product_name",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer-facing product name.",
+      "nullable": false
+    },
+    "category": {
+      "name": "category",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchandising category.",
+      "nullable": false
+    },
+    "list_price": {
+      "name": "list_price",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Current catalog list price.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_web_events,PROD)": {
+    "event_id": {
+      "name": "event_id",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Stable event identifier.",
+      "nullable": false
+    },
+    "session_id": {
+      "name": "session_id",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Browser session identifier.",
+      "nullable": false
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Known customer identifier when authenticated.",
+      "nullable": true
+    },
+    "event_type": {
+      "name": "event_type",
+      "native_type": "VARCHAR(32)",
+      "data_type": "string",
+      "description": "Storefront interaction category.",
+      "nullable": false
+    },
+    "event_at": {
+      "name": "event_at",
+      "native_type": "TIMESTAMP_NTZ",
+      "data_type": "time",
+      "description": "Timestamp at which the event occurred.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)": {
+    "order_id": {
+      "name": "order_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable order primary key.",
+      "nullable": false
+    },
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Customer who placed the order.",
+      "nullable": false
+    },
+    "order_date": {
+      "name": "order_date",
+      "native_type": "DATE",
+      "data_type": "date",
+      "description": "Calendar date on which the order was placed.",
+      "nullable": false
+    },
+    "order_status": {
+      "name": "order_status",
+      "native_type": "VARCHAR(32)",
+      "data_type": "string",
+      "description": "Current lifecycle status of the order.",
+      "nullable": false
+    },
+    "item_count": {
+      "name": "item_count",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Number of line items in the order.",
+      "nullable": false
+    },
+    "net_revenue": {
+      "name": "net_revenue",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Order revenue after discounts.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_customers,PROD)": {
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable customer primary key.",
+      "nullable": false
+    },
+    "email": {
+      "name": "email",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer email address classified as PII.",
+      "nullable": false
+    },
+    "full_name": {
+      "name": "full_name",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer full name classified as PII.",
+      "nullable": false
+    },
+    "signup_date": {
+      "name": "signup_date",
+      "native_type": "DATE",
+      "data_type": "date",
+      "description": "Date the customer registered.",
+      "nullable": false
+    },
+    "country_code": {
+      "name": "country_code",
+      "native_type": "VARCHAR(2)",
+      "data_type": "string",
+      "description": "Two-letter customer country code.",
+      "nullable": false
+    },
+    "is_marketable": {
+      "name": "is_marketable",
+      "native_type": "BOOLEAN",
+      "data_type": "boolean",
+      "description": "Whether marketing contact is permitted.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_products,PROD)": {
+    "product_id": {
+      "name": "product_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable product primary key.",
+      "nullable": false
+    },
+    "sku": {
+      "name": "sku",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchant stock-keeping unit.",
+      "nullable": false
+    },
+    "product_name": {
+      "name": "product_name",
+      "native_type": "VARCHAR(255)",
+      "data_type": "string",
+      "description": "Customer-facing product name.",
+      "nullable": false
+    },
+    "category": {
+      "name": "category",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchandising category.",
+      "nullable": false
+    },
+    "list_price": {
+      "name": "list_price",
+      "native_type": "NUMBER(12,2)",
+      "data_type": "number",
+      "description": "Current catalog list price.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)": {
+    "order_date": {
+      "name": "order_date",
+      "native_type": "DATE",
+      "data_type": "date",
+      "description": "Reporting calendar date.",
+      "nullable": false
+    },
+    "order_count": {
+      "name": "order_count",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Number of orders placed on the date.",
+      "nullable": false
+    },
+    "gross_revenue": {
+      "name": "gross_revenue",
+      "native_type": "NUMBER(18,2)",
+      "data_type": "number",
+      "description": "Sum of net order revenue.",
+      "nullable": false
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)": {
+    "customer_id": {
+      "name": "customer_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable customer primary key.",
+      "nullable": false
+    },
+    "country_code": {
+      "name": "country_code",
+      "native_type": "VARCHAR(2)",
+      "data_type": "string",
+      "description": "Two-letter customer country code.",
+      "nullable": false
+    },
+    "lifetime_orders": {
+      "name": "lifetime_orders",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Number of customer orders.",
+      "nullable": false
+    },
+    "lifetime_revenue": {
+      "name": "lifetime_revenue",
+      "native_type": "NUMBER(18,2)",
+      "data_type": "number",
+      "description": "Total customer net revenue.",
+      "nullable": false
+    },
+    "first_order_date": {
+      "name": "first_order_date",
+      "native_type": "DATE",
+      "data_type": "date",
+      "description": "Date of the customer's earliest order.",
+      "nullable": true
+    }
+  },
+  "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_product_performance,PROD)": {
+    "product_id": {
+      "name": "product_id",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Stable product primary key.",
+      "nullable": false
+    },
+    "sku": {
+      "name": "sku",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchant stock-keeping unit.",
+      "nullable": false
+    },
+    "category": {
+      "name": "category",
+      "native_type": "VARCHAR(64)",
+      "data_type": "string",
+      "description": "Merchandising category.",
+      "nullable": false
+    },
+    "units_sold": {
+      "name": "units_sold",
+      "native_type": "NUMBER(38,0)",
+      "data_type": "number",
+      "description": "Total number of product units sold.",
+      "nullable": false
+    },
+    "revenue": {
+      "name": "revenue",
+      "native_type": "NUMBER(18,2)",
+      "data_type": "number",
+      "description": "Total extended line revenue.",
+      "nullable": false
+    }
+  }
+}

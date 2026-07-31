@@ -11,8 +11,26 @@ venv/
 # Env & secrets
 .env
 .env.*
+!.env.example
 
 # OS / editor
 .DS_Store
 .idea/
 .vscode/
+
+# Orchestration artifacts (private)
+plans/
+STATUS.md
+.agents/
+.claude/
+skills-lock.json
+scratch/
+
+# Build / tool caches
+.pytest_cache/
+.ruff_cache/
+demo-warehouse/target/
+demo-warehouse/logs/
+demo-warehouse/.repair-agent/applied_drift.json
+node_modules/
+dist/

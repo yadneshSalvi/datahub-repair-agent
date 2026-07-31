@@ -1,0 +1,109 @@
+version: 2
+
+sources:
+  - name: shop_raw
+    description: Raw ShopFlow operational data landed in Snowflake.
+    database: shop_prod
+    schema: raw
+    tables:
+      - name: orders
+        description: One row per customer order; the schema-drift demo epicentre.
+        columns:
+          - name: order_id
+            description: Stable order primary key.
+            tests: [not_null, unique]
+          - name: customer_id
+            description: Customer who placed the order.
+            tests: [not_null]
+          - name: order_placed_at
+            description: Timestamp at which the order was placed.
+            tests: [not_null]
+          - name: order_status
+            description: Current lifecycle status of the order.
+            tests: [not_null]
+          - name: gross_amount
+            description: Gross order value before discounts.
+            tests: [not_null]
+          - name: discount_amount
+            description: Discount applied to the order.
+          - name: currency_code
+            description: ISO currency code for the order value.
+            tests: [not_null]
+      - name: customers
+        description: ShopFlow customer accounts and marketing preferences.
+        columns:
+          - name: customer_id
+            description: Stable customer primary key.
+            tests: [not_null, unique]
+          - name: email
+            description: Customer email address classified as PII.
+            tests: [not_null]
+          - name: full_name
+            description: Customer full name classified as PII.
+            tests: [not_null]
+          - name: signup_date
+            description: Date the customer registered.
+            tests: [not_null]
+          - name: country_code
+            description: Two-letter customer country code.
+            tests: [not_null]
+          - name: marketing_opt_in
+            description: Whether the customer accepts marketing messages.
+            tests: [not_null]
+      - name: order_items
+        description: Line items belonging to ShopFlow orders.
+        columns:
+          - name: order_item_id
+            description: Stable order-line primary key.
+            tests: [not_null, unique]
+          - name: order_id
+            description: Parent order identifier.
+            tests: [not_null]
+          - name: product_id
+            description: Purchased product identifier.
+            tests: [not_null]
+          - name: quantity
+            description: Number of product units purchased.
+            tests: [not_null]
+          - name: unit_price
+            description: Price per product unit at purchase time.
+            tests: [not_null]
+      - name: products
+        description: ShopFlow product catalog.
+        columns:
+          - name: product_id
+            description: Stable product primary key.
+            tests: [not_null, unique]
+          - name: sku
+            description: Merchant stock-keeping unit.
+            tests: [not_null, unique]
+          - name: product_name
+            description: Customer-facing product name.
+            tests: [not_null]
+          - name: category
+            description: Merchandising category.
+            tests: [not_null]
+          - name: list_price
+            description: Current catalog list price.
+            tests: [not_null]
+      - name: web_events
+        description: ShopFlow storefront interaction events.
+        columns:
+          - name: event_id
+            description: Stable event identifier.
+            tests: [not_null, unique]
+          - name: session_id
+            description: Browser session identifier.
+            tests: [not_null]
+          - name: customer_id
+            description: Known customer identifier when authenticated.
+          - name: event_type
+            description: Storefront interaction category.
+            tests: [not_null]
+          - name: event_at
+            description: Timestamp at which the event occurred.
+            tests: [not_null]
+          - name: page_url
+            description: Storefront URL associated with the event.
+            tests: [not_null]
+

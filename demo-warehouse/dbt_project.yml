@@ -1,0 +1,17 @@
+name: shopflow
+version: "1.0.0"
+config-version: 2
+
+profile: shopflow
+model-paths: ["models"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  shopflow:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: analytics
+

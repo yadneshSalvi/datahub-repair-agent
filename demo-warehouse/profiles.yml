@@ -1,0 +1,8 @@
+shopflow:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: .repair-agent/shopflow.duckdb
+      threads: 2
+

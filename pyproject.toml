@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datahub-repair-agent"
+version = "0.1.0"
+description = "A metadata-aware schema-drift auto-repair agent powered by DataHub."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "acryl-datahub[datahub-rest]==1.6.0.16",
+  "httpx",
+  "jinja2",
+  "pydantic>=2",
+  "pydantic-settings",
+  "python-dotenv",
+  "rich",
+  "ruamel-yaml",
+  "sqlglot",
+  "typer",
+]
+
+[project.optional-dependencies]
+demo = [
+  "dbt-core",
+  "dbt-duckdb",
+]
+
+[dependency-groups]
+dev = [
+  "pytest",
+  "ruff",
+]
+
+[project.scripts]
+repair-agent = "repair_agent.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repair_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 124
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
