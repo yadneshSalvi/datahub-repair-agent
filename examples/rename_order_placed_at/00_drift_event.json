@@ -9,5 +9,5 @@
   "new_type": "TIMESTAMP_NTZ",
   "confidence": 0.95,
   "rationale": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
-  "detected_at": "2026-07-31T21:44:40.627808Z"
+  "detected_at": "2026-07-31T22:07:09.508143Z"
 }

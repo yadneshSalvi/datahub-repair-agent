@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -39,11 +40,103 @@ class CodeMapMissing(RuntimeError):
 class ImpactEngine:
     """Compute a precise blast radius from DataHub evidence and exact SQL references."""
 
+    #: Budget for waiting out DataHub graph-index lag (see _lineage_with_index_settling).
+    LINEAGE_SETTLE_ATTEMPTS = 10
+    LINEAGE_SETTLE_SECONDS = 3.0
+
     def __init__(self, datahub_io: DataHubIO | None = None, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self.datahub_io = datahub_io or DataHubIO(self.settings)
         self.code_map = _load_code_map(self.settings.repo_root / "demo-warehouse" / "code_map.yml")
         self._fgl_cache: dict[str, list[FglEdge]] = {}
+
+    def _lineage_with_index_settling(self, drift: DriftEvent) -> tuple[list[Any], list[Any]]:
+        """Read column-level and table-level lineage, waiting out graph-index lag.
+
+        DataHub's lineage graph is populated asynchronously. Immediately after a re-seed the
+        column-level query can legitimately return nothing while the table-level query
+        already returns downstreams. Those two answers cannot both be true: if a dataset has
+        downstream tables, at least one of its columns feeds them. Treat the disagreement as
+        "the index has not settled" and retry, rather than reporting an empty blast radius —
+        an empty result here silently means "nothing to repair", which is the single worst
+        failure mode this tool has.
+
+        Once the two agree (or the budget expires) the answer is returned as-is; a genuinely
+        unused column correctly yields no column hits AND is reported as such.
+        """
+
+        assert drift.old_column is not None
+        expected = self._aspect_declared_downstreams(drift)
+        column_hits: list[Any] = []
+        table_hits: list[Any] = []
+        for attempt in range(self.LINEAGE_SETTLE_ATTEMPTS):
+            column_hits = self.datahub_io.column_impact(drift.dataset_urn, drift.old_column, max_hops=3)
+            table_hits = self.datahub_io.table_downstreams(drift.dataset_urn, max_hops=3)
+            if not expected or {hit.urn for hit in column_hits} >= expected:
+                break
+            if attempt < self.LINEAGE_SETTLE_ATTEMPTS - 1:
+                LOGGER.info(
+                    "Column-lineage search returned %d of the %d downstream(s) that %s.%s's "
+                    "lineage aspects declare; waiting for the DataHub graph index to settle "
+                    "(attempt %d/%d).",
+                    len(column_hits),
+                    len(expected),
+                    drift.dataset_name,
+                    drift.old_column,
+                    attempt + 1,
+                    self.LINEAGE_SETTLE_ATTEMPTS,
+                )
+                time.sleep(self.LINEAGE_SETTLE_SECONDS)
+        missing = expected - {hit.urn for hit in column_hits}
+        if missing:
+            LOGGER.warning(
+                "DataHub's lineage search still omits %d dataset(s) that declare a column edge "
+                "from %s.%s (%s). Proceeding with the search result; re-run if the impact set "
+                "looks short.",
+                len(missing),
+                drift.dataset_name,
+                drift.old_column,
+                ", ".join(sorted(_asset_name(urn) for urn in missing)),
+            )
+        return column_hits, table_hits
+
+    def _aspect_declared_downstreams(self, drift: DriftEvent) -> set[str]:
+        """Datasets whose own lineage ASPECTS declare a direct edge from the drifted column.
+
+        Read entity-by-entity over GraphQL rather than through lineage search, so it does not
+        depend on the asynchronously-built graph index. This is the oracle that tells the
+        settle loop whether an empty search result is real or merely early: aspects are
+        written synchronously by the seed, the index catches up seconds later.
+        """
+
+        assert drift.old_column is not None
+        edges: list[FglEdge] = []
+        for urn in self.code_map["datasets"]:
+            try:
+                dataset_edges = self._fgl_cache.get(urn) or self.datahub_io.fine_grained_lineage(urn, skip_cache=True)
+            except Exception as exc:  # pragma: no cover - only a live-catalog degradation
+                LOGGER.debug("Could not pre-read fine-grained lineage for %s: %s", urn, exc)
+                continue
+            self._fgl_cache[urn] = dataset_edges
+            edges.extend(dataset_edges)
+
+        # Walk the aspect graph transitively: a hop-2 model is indexed slightly later than a
+        # hop-1 model, so a direct-edge-only oracle stops waiting too early and reports a
+        # blast radius that is short by exactly the deeper models.
+        frontier = {(drift.dataset_urn.lower(), drift.old_column.lower())}
+        seen: set[tuple[str, str]] = set()
+        declared: set[str] = set()
+        while frontier:
+            current = frontier.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            for edge in edges:
+                if (edge.upstream_urn.lower(), (edge.upstream_path or "").lower()) != current:
+                    continue
+                declared.add(edge.downstream_urn)
+                frontier.add((edge.downstream_urn.lower(), (edge.downstream_path or "").lower()))
+        return declared
 
     def analyze(self, drift: DriftEvent) -> ImpactReport:
         """Run the seven impact-analysis steps in the locked plan order."""
@@ -51,12 +144,9 @@ class ImpactEngine:
         if drift.old_column is None:
             return self._addition_report(drift)
 
-        # 1. Exact column blast radius.
-        column_hits = self.datahub_io.column_impact(drift.dataset_urn, drift.old_column, max_hops=3)
+        # 1 & 2. Exact column blast radius, plus the full table downstream set for contrast.
+        column_hits, table_hits = self._lineage_with_index_settling(drift)
         column_by_urn = {hit.urn: hit for hit in column_hits}
-
-        # 2. Full table downstream set for contrast.
-        table_hits = self.datahub_io.table_downstreams(drift.dataset_urn, max_hops=3)
         table_by_urn = {hit.urn: hit for hit in table_hits}
 
         # 3. Sweep all namespace dbt datasets, including unrelated models.

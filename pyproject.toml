@@ -10,7 +10,10 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11,<3.12"
 dependencies = [
-  "acryl-datahub[datahub-rest]==1.6.0.16",
+  # Pinned to match the DataHub server version (OSS quickstart v1.5.0.6). A newer CLI warns
+  # about client/server skew; every API this project uses has an identical signature in
+  # 1.5.0.6, so matching the server is the safer default for a reproducible demo.
+  "acryl-datahub[datahub-rest]==1.5.0.6",
   "fastapi",
   "httpx",
   "jinja2",

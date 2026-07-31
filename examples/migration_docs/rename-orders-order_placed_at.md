@@ -1,49 +1,26 @@
+# Migration: shop_prod.raw.orders.order_placed_at
+
 ## Change
-Rename `shop_prod.raw.orders.order_placed_at` to `order_created_at`.
 
-The replacement has the same `TIMESTAMP_NTZ` type and ordinal position (3). Rename confidence: 0.95.
+`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.
 
-## Immutable patch scope
-Apply the supplied deterministic patches without modification:
+The repair changes `order_placed_at` to `order_created_at` for `shop_prod.raw.orders`.
+Code was produced only by deterministic sqlglot/dbt/Airflow transforms; language-model
+output is prose-only.
 
-- `demo-warehouse/dags/shopflow_daily.py`: two exact references in `RECENT_ORDERS_SQL`.
-- `demo-warehouse/models/marts/fct_orders.sql`: one exact AST column reference.
-- `demo-warehouse/models/staging/stg_orders.sql`: one exact AST column reference.
-- `demo-warehouse/models/staging/schema.yml`: rename the `stg_orders` metadata entry, preserve description provenance, and include the supplied built-in test.
+## Blast radius
 
-No changes are required for `mart_customer_ltv` or `mart_daily_revenue`; review only. All listed skipped assets are outside the exact column-lineage path.
+- **3** code-bearing asset(s) require a patch.
+- **2** downstream asset(s) are insulated by existing aliases and need review only.
+- **7** asset(s) were correctly skipped because DataHub exposes no changed-column path.
 
-## Rollout
-1. Confirm the source schema exposes `order_created_at` as `TIMESTAMP_NTZ` at ordinal position 3 and no longer exposes `order_placed_at`.
-2. Deploy the four supplied patches together.
-3. Run the staging model and its metadata test.
-4. Run `fct_orders`.
-5. Run `extract_recent_orders`.
-6. Resume normal downstream scheduling after validation passes.
+## Validation and rollout
 
-## Validation
-- Confirm repair resolution remains **23/23**.
-- Verify no patched asset still references `order_placed_at`.
-- Verify `stg_orders` exposes the preserved downstream output contract expected by lineage consumers.
-- Confirm the added built-in dbt test passes.
-- Confirm `fct_orders` and `extract_recent_orders` complete successfully.
-- Review `mart_customer_ltv` and `mart_daily_revenue` to confirm their upstream `order_date` remains populated and stable.
-
-## Monitoring
-For the first full production cycle, monitor:
-
-- Airflow status and logs for `extract_recent_orders`.
-- dbt failures or test regressions for `stg_orders` and `fct_orders`.
-- Missing-column errors mentioning either timestamp name.
-- Null-rate, row-count, and freshness changes along the affected order-date lineage.
-- Unexpected changes in `mart_customer_ltv` and `mart_daily_revenue`.
+All 23 generated SQL reference(s) were checked before review; 23 resolved.
+Apply the dbt changes before dependent Airflow code, run the declared dbt tests, and
+monitor the DataHub incident until consumers are healthy.
 
 ## Rollback
-If validation fails:
 
-1. Pause affected downstream scheduling.
-2. Revert the four supplied patches as one deployment unit.
-3. Restore processing only if the source again exposes `order_placed_at`; otherwise keep affected jobs paused because the prior references cannot operate against the renamed source.
-4. Re-run validation after source and deployment state are aligned.
-
-Do not partially roll back or alter the deterministic patches.
+Revert the PR commit and restore the upstream field contract. Then re-run the repair agent
+so DataHub lineage and documentation match the restored schema.

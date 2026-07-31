@@ -1,0 +1,74 @@
+{
+  "id": "run-1ef38a291b164c4598069991ef1b62ac",
+  "status": "failed",
+  "degraded": true,
+  "degradations": [
+    "LLM disabled by --no-llm; using deterministic orchestration and Jinja prose."
+  ],
+  "drift": null,
+  "impact": null,
+  "patches": [],
+  "pr": null,
+  "writeback": [],
+  "events": [
+    {
+      "seq": 1,
+      "ts": "2026-07-31T22:04:53.503145Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Schema-drift repair started",
+      "detail": "Run run-1ef38a291b164c4598069991ef1b62ac is scoped to `rename-orders-order_placed_at` in dry-run PR mode.",
+      "data": {}
+    },
+    {
+      "seq": 2,
+      "ts": "2026-07-31T22:04:53.503313Z",
+      "phase": "detect",
+      "level": "warning",
+      "title": "Graceful degradation",
+      "detail": "LLM disabled by --no-llm; using deterministic orchestration and Jinja prose.",
+      "data": {}
+    },
+    {
+      "seq": 3,
+      "ts": "2026-07-31T22:04:53.503732Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Checking the live DataHub catalog",
+      "detail": "Verifying GMS, then comparing live schemas with the committed baseline snapshot.",
+      "data": {}
+    },
+    {
+      "seq": 4,
+      "ts": "2026-07-31T22:04:53.596095Z",
+      "phase": "done",
+      "level": "error",
+      "title": "Repair pipeline failed",
+      "detail": "Drift `rename-orders-order_placed_at` is not active. Active drift IDs: none. Apply one with `repair-agent simulate <scenario>` first.",
+      "data": {}
+    },
+    {
+      "seq": 5,
+      "ts": "2026-07-31T22:04:53.597121Z",
+      "phase": "done",
+      "level": "error",
+      "title": "Repair run failed",
+      "detail": "Drift `rename-orders-order_placed_at` is not active. Active drift IDs: none. Apply one with `repair-agent simulate <scenario>` first.. Inspect the preceding event and retry after correcting the reported dependency.",
+      "data": {}
+    },
+    {
+      "seq": 6,
+      "ts": "2026-07-31T22:04:53.597837Z",
+      "phase": "done",
+      "level": "error",
+      "title": "Repair run incomplete",
+      "detail": "Status failed; 0 patches, 0 DataHub write-back actions, degraded=True.",
+      "data": {
+        "status": "failed",
+        "degraded": true
+      }
+    }
+  ],
+  "started_at": "2026-07-31T22:04:53.499845Z",
+  "finished_at": "2026-07-31T22:04:53.597824Z"
+}

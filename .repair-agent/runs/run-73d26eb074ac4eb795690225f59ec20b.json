@@ -1,0 +1,237 @@
+{
+  "id": "run-73d26eb074ac4eb795690225f59ec20b",
+  "status": "failed",
+  "degraded": false,
+  "degradations": [],
+  "drift": null,
+  "impact": null,
+  "patches": [],
+  "pr": null,
+  "writeback": [],
+  "events": [
+    {
+      "seq": 1,
+      "ts": "2026-07-31T22:11:08.208125Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Schema-drift repair started",
+      "detail": "Run run-73d26eb074ac4eb795690225f59ec20b is scoped to `drop-customers-marketing_opt_in` in dry-run PR mode.",
+      "data": {}
+    },
+    {
+      "seq": 2,
+      "ts": "2026-07-31T22:11:08.208154Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Starting OpenAI agent with gpt-5.6-sol",
+      "detail": "DataHub reads will be performed through the attached stdio MCP server.",
+      "data": {}
+    },
+    {
+      "seq": 3,
+      "ts": "2026-07-31T22:11:09.628114Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Agent active",
+      "detail": "SchemaDriftRepairAgent is processing catalog evidence.",
+      "data": {}
+    },
+    {
+      "seq": 4,
+      "ts": "2026-07-31T22:11:11.474503Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: search",
+      "detail": "Reading catalog evidence through DataHub MCP `search`.",
+      "data": {
+        "tool": "search",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 5,
+      "ts": "2026-07-31T22:11:11.556907Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 6,
+      "ts": "2026-07-31T22:11:14.273028Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: list_schema_fields",
+      "detail": "Reading catalog evidence through DataHub MCP `list_schema_fields`.",
+      "data": {
+        "tool": "list_schema_fields",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 7,
+      "ts": "2026-07-31T22:11:14.330219Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 8,
+      "ts": "2026-07-31T22:11:16.170900Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage`.",
+      "data": {
+        "tool": "get_lineage",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 9,
+      "ts": "2026-07-31T22:11:16.238165Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 10,
+      "ts": "2026-07-31T22:11:19.857521Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 11,
+      "ts": "2026-07-31T22:11:19.883062Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 12,
+      "ts": "2026-07-31T22:11:19.984070Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 13,
+      "ts": "2026-07-31T22:11:20.380515Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 14,
+      "ts": "2026-07-31T22:11:20.380534Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 15,
+      "ts": "2026-07-31T22:11:20.380538Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 16,
+      "ts": "2026-07-31T22:11:22.120533Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Agent tool call: detect_drift",
+      "detail": "Executing the shared `detect_drift` repair stage.",
+      "data": {
+        "tool": "detect_drift",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 17,
+      "ts": "2026-07-31T22:11:22.133525Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Checking the live DataHub catalog",
+      "detail": "Verifying GMS, then comparing live schemas with the committed baseline snapshot.",
+      "data": {}
+    },
+    {
+      "seq": 18,
+      "ts": "2026-07-31T22:11:22.231583Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 19,
+      "ts": "2026-07-31T22:11:26.625399Z",
+      "phase": "done",
+      "level": "warning",
+      "title": "Completing omitted agent steps deterministically",
+      "detail": "The agent omitted detect, impact, codegen, pr, writeback; the shared contract is completing them now.",
+      "data": {}
+    },
+    {
+      "seq": 20,
+      "ts": "2026-07-31T22:11:26.625467Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Checking the live DataHub catalog",
+      "detail": "Verifying GMS, then comparing live schemas with the committed baseline snapshot.",
+      "data": {}
+    },
+    {
+      "seq": 21,
+      "ts": "2026-07-31T22:11:26.699531Z",
+      "phase": "done",
+      "level": "error",
+      "title": "Repair run failed",
+      "detail": "Drift `drop-customers-marketing_opt_in` is not active. Active drift IDs: rename-orders-order_placed_at. Apply one with `repair-agent simulate <scenario>` first.. Inspect the preceding event and retry after correcting the reported dependency.",
+      "data": {}
+    },
+    {
+      "seq": 22,
+      "ts": "2026-07-31T22:11:26.699975Z",
+      "phase": "done",
+      "level": "error",
+      "title": "Repair run incomplete",
+      "detail": "Status failed; 0 patches, 0 DataHub write-back actions, degraded=False.",
+      "data": {
+        "status": "failed",
+        "degraded": false
+      }
+    }
+  ],
+  "started_at": "2026-07-31T22:11:08.207226Z",
+  "finished_at": "2026-07-31T22:11:26.699970Z"
+}

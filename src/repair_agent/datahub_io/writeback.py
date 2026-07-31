@@ -168,10 +168,7 @@ class DataHubWriteback:
                 raise RuntimeError("; ".join(error or "tag creation failed" for error in failures))
 
             detected = TagAssociationClass(tag=make_tag_urn(detected_tag))
-            source_builder = DatasetPatchBuilder(source_dataset_urn)
-            source_builder.add_tag(detected)
-            for proposal in source_builder.build():
-                self.graph.emit_mcp(proposal)
+            self._add_dataset_tag(source_dataset_urn, detected)
 
             existing = self.graph.get_aspect(source_dataset_urn, EditableSchemaMetadataClass)
             field_info = deepcopy(existing.editableSchemaFieldInfo) if existing else []
@@ -198,10 +195,7 @@ class DataHubWriteback:
 
             repaired = TagAssociationClass(tag=make_tag_urn(repaired_tag))
             for urn in sorted(set(patched_dataset_urns)):
-                builder = DatasetPatchBuilder(urn)
-                builder.add_tag(repaired)
-                for proposal in builder.build():
-                    self.graph.emit_mcp(proposal)
+                self._add_dataset_tag(urn, repaired)
             return self._action(
                 kind="tag_assets",
                 target_urn=source_dataset_urn,
@@ -217,6 +211,26 @@ class DataHubWriteback:
                 detail="Could not apply schema-drift governance tags.",
                 error=exc,
             )
+
+    def _add_dataset_tag(self, dataset_urn: str, association: TagAssociationClass) -> None:
+        """Idempotently add one dataset-level tag via read-modify-write.
+
+        Deliberately NOT ``DatasetPatchBuilder.add_tag``: that emits a JSON-patch ``add`` at
+        ``/globalTags/tags/<tagUrn>``, and when the dataset has no ``globalTags`` aspect yet
+        GMS v1.5.0.6 rejects it with
+        ``JsonException: The JSON Object '{}' contains no mapping for the name '<tagUrn>'``.
+        Reading the aspect and writing the merged value back works on every server version
+        and stays idempotent, which matters because repair runs are re-run constantly.
+        """
+
+        existing = self.graph.get_aspect(dataset_urn, GlobalTagsClass)
+        tags = list(existing.tags) if existing else []
+        if association.tag in {item.tag for item in tags}:
+            return
+        tags.append(association)
+        self.graph.emit_mcp(
+            MetadataChangeProposalWrapper(entityUrn=dataset_urn, aspect=GlobalTagsClass(tags=tags))
+        )
 
     def raise_incident(
         self,

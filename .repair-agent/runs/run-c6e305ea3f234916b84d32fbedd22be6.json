@@ -1,0 +1,1064 @@
+{
+  "id": "run-c6e305ea3f234916b84d32fbedd22be6",
+  "status": "succeeded",
+  "degraded": false,
+  "degradations": [],
+  "drift": {
+    "id": "rename-orders-order_placed_at",
+    "kind": "RENAME",
+    "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+    "dataset_name": "shop_prod.raw.orders",
+    "old_column": "order_placed_at",
+    "new_column": "order_created_at",
+    "old_type": "TIMESTAMP_NTZ",
+    "new_type": "TIMESTAMP_NTZ",
+    "confidence": 0.95,
+    "rationale": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+    "detected_at": "2026-07-31T22:11:17.170405Z"
+  },
+  "impact": {
+    "drift": {
+      "id": "rename-orders-order_placed_at",
+      "kind": "RENAME",
+      "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "dataset_name": "shop_prod.raw.orders",
+      "old_column": "order_placed_at",
+      "new_column": "order_created_at",
+      "old_type": "TIMESTAMP_NTZ",
+      "new_type": "TIMESTAMP_NTZ",
+      "confidence": 0.95,
+      "rationale": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+      "detected_at": "2026-07-31T22:11:17.170405Z"
+    },
+    "assets": [
+      {
+        "urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+        "name": "extract_recent_orders",
+        "kind": "airflow_task",
+        "bucket": "REQUIRES_PATCH",
+        "hops": 1,
+        "matched_columns": [
+          "order_placed_at"
+        ],
+        "code_path": "demo-warehouse/dags/shopflow_daily.py",
+        "reason": "DataHub table lineage links this Airflow task to `shop_prod.raw.orders`, and its configured SQL constant references `order_placed_at` exactly 2 times on lines 2, 4.",
+        "lineage_path": [
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+            "downstream_column": "order_placed_at",
+            "transform_operation": "DIRECT_SQL_REFERENCE",
+            "hops": 1
+          }
+        ],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_customers,PROD)",
+        "name": "dim_customers",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/dim_customers.sql",
+        "reason": "In the table-level downstream graph, but consumes `stg_customers` columns {country_code, customer_id, email, full_name, marketing_opt_in, signup_date}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_products,PROD)",
+        "name": "dim_products",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/dim_products.sql",
+        "reason": "In the table-level downstream graph, but consumes `stg_products` columns {category, list_price, product_id, product_name, sku}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+        "name": "fct_orders",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/fct_orders.sql",
+        "reason": "In the table-level downstream graph, but consumes `stg_order_items` columns {order_id}; `stg_orders` columns {customer_id, net_amount, order_created_at, order_id, order_status}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)",
+        "name": "mart_customer_ltv",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/mart_customer_ltv.sql",
+        "reason": "In the table-level downstream graph, but consumes `dim_customers` columns {country_code, customer_id}; `fct_orders` columns {net_revenue, order_date, order_id}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)",
+        "name": "mart_daily_revenue",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/mart_daily_revenue.sql",
+        "reason": "In the table-level downstream graph, but consumes `fct_orders` columns {net_revenue, order_date, order_id}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_product_performance,PROD)",
+        "name": "mart_product_performance",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/mart_product_performance.sql",
+        "reason": "In the table-level downstream graph, but consumes `dim_products` columns {category, product_id, sku}; `stg_order_items` columns {line_total, quantity}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_customers,PROD)",
+        "name": "stg_customers",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_customers.sql",
+        "reason": "In the table-level downstream graph, but consumes `customers` columns {country_code, customer_id, email, full_name, marketing_opt_in, signup_date}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_order_items,PROD)",
+        "name": "stg_order_items",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_order_items.sql",
+        "reason": "In the table-level downstream graph, but consumes `order_items` columns {order_id, order_item_id, product_id, quantity, unit_price}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+        "name": "stg_orders",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 1,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_orders.sql",
+        "reason": "In the table-level downstream graph, but consumes `orders` columns {customer_id, discount_amount, gross_amount, order_created_at, order_id, order_status}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_products,PROD)",
+        "name": "stg_products",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_products.sql",
+        "reason": "In the table-level downstream graph, but consumes `products` columns {category, list_price, product_id, product_name, sku}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_web_events,PROD)",
+        "name": "stg_web_events",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_web_events.sql",
+        "reason": "In the table-level downstream graph, but consumes `web_events` columns {customer_id, event_at, event_id, event_type, session_id}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      }
+    ],
+    "graph": {
+      "nodes": [
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+          "name": "shop_prod.raw.orders",
+          "kind": "dataset",
+          "bucket": null,
+          "columns": [
+            "order_placed_at"
+          ],
+          "hops": 0,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+          "name": "extract_recent_orders",
+          "kind": "airflow_task",
+          "bucket": "REQUIRES_PATCH",
+          "columns": [
+            "order_placed_at"
+          ],
+          "hops": 1,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3AdataJob%3A%28urn%3Ali%3AdataFlow%3A%28airflow%2Cshopflow_daily%2CPROD%29%2Cextract_recent_orders%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_customers,PROD)",
+          "name": "dim_customers",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.dim_customers%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_products,PROD)",
+          "name": "dim_products",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.dim_products%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+          "name": "fct_orders",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.fct_orders%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)",
+          "name": "mart_customer_ltv",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.mart_customer_ltv%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)",
+          "name": "mart_daily_revenue",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.mart_daily_revenue%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_product_performance,PROD)",
+          "name": "mart_product_performance",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.mart_product_performance%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_customers,PROD)",
+          "name": "stg_customers",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_customers%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_order_items,PROD)",
+          "name": "stg_order_items",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_order_items%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+          "name": "stg_orders",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 1,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_orders%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_products,PROD)",
+          "name": "stg_products",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_products%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_web_events,PROD)",
+          "name": "stg_web_events",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_web_events%2CPROD%29"
+        }
+      ],
+      "edges": [
+        {
+          "source_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+          "target_urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+          "source_columns": [
+            "order_placed_at"
+          ],
+          "target_columns": [
+            "order_placed_at"
+          ],
+          "transform_operation": "DIRECT_SQL_REFERENCE"
+        }
+      ]
+    },
+    "stats": {
+      "requires_patch": 1,
+      "downstream_unaffected": 0,
+      "skipped": 11,
+      "total_scanned": 12,
+      "max_hops_reached": 3
+    }
+  },
+  "patches": [
+    {
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+      "file_path": "demo-warehouse/dags/shopflow_daily.py",
+      "before": "\"\"\"Daily ShopFlow extraction and dbt transformation DAG.\"\"\"\n\nfrom __future__ import annotations\n\nfrom datetime import datetime\n\nfrom airflow import DAG\nfrom airflow.operators.bash import BashOperator\nfrom airflow.providers.snowflake.operators.snowflake import SnowflakeOperator\n\n\nRECENT_ORDERS_SQL = \"\"\"\nselect order_id, customer_id, order_placed_at, gross_amount\nfrom shop_prod.raw.orders\nwhere order_placed_at >= dateadd('day', -1, current_timestamp())\n\"\"\"\n\nPRODUCT_CATALOG_SQL = \"\"\"\nselect product_id, sku, product_name, category, list_price\nfrom shop_prod.raw.products\nwhere product_id is not null\n\"\"\"\n\n\nwith DAG(\n    dag_id=\"shopflow_daily\",\n    description=\"Extract recent ShopFlow data and refresh the dbt warehouse.\",\n    start_date=datetime(2026, 1, 1),\n    schedule=\"0 5 * * *\",\n    catchup=False,\n    tags=[\"shopflow\", \"datahub-demo\"],\n) as dag:\n    extract_recent_orders = SnowflakeOperator(\n        task_id=\"extract_recent_orders\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=RECENT_ORDERS_SQL,\n    )\n\n    refresh_product_catalog = SnowflakeOperator(\n        task_id=\"refresh_product_catalog\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=PRODUCT_CATALOG_SQL,\n    )\n\n    run_dbt_staging = BashOperator(\n        task_id=\"run_dbt_staging\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select staging\",\n    )\n\n    run_dbt_marts = BashOperator(\n        task_id=\"run_dbt_marts\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select marts\",\n    )\n\n    [extract_recent_orders, refresh_product_catalog] >> run_dbt_staging >> run_dbt_marts\n\n",
+      "after": "\"\"\"Daily ShopFlow extraction and dbt transformation DAG.\"\"\"\n\nfrom __future__ import annotations\n\nfrom datetime import datetime\n\nfrom airflow import DAG\nfrom airflow.operators.bash import BashOperator\nfrom airflow.providers.snowflake.operators.snowflake import SnowflakeOperator\n\n\nRECENT_ORDERS_SQL = \"\"\"\nselect order_id, customer_id, order_created_at, gross_amount\nfrom shop_prod.raw.orders\nwhere order_created_at >= dateadd('day', -1, current_timestamp())\n\"\"\"\n\nPRODUCT_CATALOG_SQL = \"\"\"\nselect product_id, sku, product_name, category, list_price\nfrom shop_prod.raw.products\nwhere product_id is not null\n\"\"\"\n\n\nwith DAG(\n    dag_id=\"shopflow_daily\",\n    description=\"Extract recent ShopFlow data and refresh the dbt warehouse.\",\n    start_date=datetime(2026, 1, 1),\n    schedule=\"0 5 * * *\",\n    catchup=False,\n    tags=[\"shopflow\", \"datahub-demo\"],\n) as dag:\n    extract_recent_orders = SnowflakeOperator(\n        task_id=\"extract_recent_orders\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=RECENT_ORDERS_SQL,\n    )\n\n    refresh_product_catalog = SnowflakeOperator(\n        task_id=\"refresh_product_catalog\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=PRODUCT_CATALOG_SQL,\n    )\n\n    run_dbt_staging = BashOperator(\n        task_id=\"run_dbt_staging\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select staging\",\n    )\n\n    run_dbt_marts = BashOperator(\n        task_id=\"run_dbt_marts\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select marts\",\n    )\n\n    [extract_recent_orders, refresh_product_catalog] >> run_dbt_staging >> run_dbt_marts\n\n",
+      "unified_diff": "--- a/demo-warehouse/dags/shopflow_daily.py\n+++ b/demo-warehouse/dags/shopflow_daily.py\n@@ -10,9 +10,9 @@\n \n \n RECENT_ORDERS_SQL = \"\"\"\n-select order_id, customer_id, order_placed_at, gross_amount\n+select order_id, customer_id, order_created_at, gross_amount\n from shop_prod.raw.orders\n-where order_placed_at >= dateadd('day', -1, current_timestamp())\n+where order_created_at >= dateadd('day', -1, current_timestamp())\n \"\"\"\n \n PRODUCT_CATALOG_SQL = \"\"\"\n",
+      "kind": "airflow_python",
+      "references": [
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_id",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "customer_id",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.customer_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_created_at",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_created_at` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "gross_amount",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.gross_amount` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_created_at",
+          "line": 4,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_created_at` against the live DataHub schema.",
+          "source": "live_catalog"
+        }
+      ],
+      "valid": true,
+      "strategy": "Renamed exact `order_placed_at` references inside RECENT_ORDERS_SQL while preserving the module's triple-quoted string style and indentation."
+    }
+  ],
+  "pr": {
+    "mode": "dry-run",
+    "url": "file:///Users/yadneshsalvi/code/hackathons/datahub/datahub-repair-agent/examples/pr_bodies/rename-orders-order_placed_at.md",
+    "branch": "repair/rename-orders-order_placed_at",
+    "title": "Repair orders timestamp schema drift",
+    "number": null,
+    "files": [
+      "demo-warehouse/dags/shopflow_daily.py"
+    ],
+    "ok": true,
+    "error": null
+  },
+  "writeback": [
+    {
+      "kind": "update_fine_grained_lineage",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Updated corrected field lineage for 0 patched dataset(s).",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Lineage",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "document_column",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Documented the repaired path on 1 dataset field(s).",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "tag_assets",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Tagged the source dataset and `order_created_at` as detected; tagged 0 repaired dataset(s).",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "raise_incident",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Reused OSS incident urn:li:incident:b08e1d39-263d-4a97-9968-c4434a8e4c43 and moved it to FIXED.",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Incidents",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "attach_migration_doc",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Attached the PR and migration guide as InstitutionalMemory.",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "record_run",
+      "target_urn": "urn:li:dataProcessInstance:985eb0481608dd5f88e3d3d2f498778b",
+      "detail": "Recorded deterministic process run `run-c6e305ea3f234916b84d32fbedd22be6` with result SUCCESS.",
+      "datahub_url": "http://localhost:9002/dataProcessInstance/urn%3Ali%3AdataProcessInstance%3A985eb0481608dd5f88e3d3d2f498778b",
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "ts": "2026-07-31T22:10:51.531896Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Schema-drift repair started",
+      "detail": "Run run-c6e305ea3f234916b84d32fbedd22be6 is scoped to `rename-orders-order_placed_at` in dry-run PR mode.",
+      "data": {}
+    },
+    {
+      "seq": 2,
+      "ts": "2026-07-31T22:10:51.531977Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Starting OpenAI agent with gpt-5.6-sol",
+      "detail": "DataHub reads will be performed through the attached stdio MCP server.",
+      "data": {}
+    },
+    {
+      "seq": 3,
+      "ts": "2026-07-31T22:10:52.469988Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Agent active",
+      "detail": "SchemaDriftRepairAgent is processing catalog evidence.",
+      "data": {}
+    },
+    {
+      "seq": 4,
+      "ts": "2026-07-31T22:10:56.209910Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: search",
+      "detail": "Reading catalog evidence through DataHub MCP `search`.",
+      "data": {
+        "tool": "search",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 5,
+      "ts": "2026-07-31T22:10:56.329822Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 6,
+      "ts": "2026-07-31T22:10:59.986353Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: list_schema_fields",
+      "detail": "Reading catalog evidence through DataHub MCP `list_schema_fields`.",
+      "data": {
+        "tool": "list_schema_fields",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 7,
+      "ts": "2026-07-31T22:11:00.048891Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 8,
+      "ts": "2026-07-31T22:11:02.810137Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage`.",
+      "data": {
+        "tool": "get_lineage",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 9,
+      "ts": "2026-07-31T22:11:02.958751Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 10,
+      "ts": "2026-07-31T22:11:07.673186Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 11,
+      "ts": "2026-07-31T22:11:07.687374Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 12,
+      "ts": "2026-07-31T22:11:07.741947Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 13,
+      "ts": "2026-07-31T22:11:07.781288Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 14,
+      "ts": "2026-07-31T22:11:07.794263Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 15,
+      "ts": "2026-07-31T22:11:08.067035Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 16,
+      "ts": "2026-07-31T22:11:08.067057Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 17,
+      "ts": "2026-07-31T22:11:08.067062Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 18,
+      "ts": "2026-07-31T22:11:08.067066Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 19,
+      "ts": "2026-07-31T22:11:08.067070Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 20,
+      "ts": "2026-07-31T22:11:14.781107Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 21,
+      "ts": "2026-07-31T22:11:14.788254Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 22,
+      "ts": "2026-07-31T22:11:14.935932Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 23,
+      "ts": "2026-07-31T22:11:14.937040Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 24,
+      "ts": "2026-07-31T22:11:15.512585Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 25,
+      "ts": "2026-07-31T22:11:15.512604Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 26,
+      "ts": "2026-07-31T22:11:15.512609Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 27,
+      "ts": "2026-07-31T22:11:15.512612Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 28,
+      "ts": "2026-07-31T22:11:17.053433Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Agent tool call: detect_drift",
+      "detail": "Executing the shared `detect_drift` repair stage.",
+      "data": {
+        "tool": "detect_drift",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 29,
+      "ts": "2026-07-31T22:11:17.066704Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Checking the live DataHub catalog",
+      "detail": "Verifying GMS, then comparing live schemas with the committed baseline snapshot.",
+      "data": {}
+    },
+    {
+      "seq": 30,
+      "ts": "2026-07-31T22:11:17.170488Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Detected rename drift",
+      "detail": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+      "data": {
+        "drift_id": "rename-orders-order_placed_at",
+        "confidence": 0.95
+      }
+    },
+    {
+      "seq": 31,
+      "ts": "2026-07-31T22:11:17.171750Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 32,
+      "ts": "2026-07-31T22:11:18.857581Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Agent tool call: analyze_impact",
+      "detail": "Executing the shared `analyze_impact` repair stage.",
+      "data": {
+        "tool": "analyze_impact",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 33,
+      "ts": "2026-07-31T22:11:18.876488Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Tracing the changed column",
+      "detail": "Following DataHub column lineage and checking exact AST references in mapped code.",
+      "data": {}
+    },
+    {
+      "seq": 34,
+      "ts": "2026-07-31T22:11:47.223358Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Blast radius classified",
+      "detail": "1 require patch, 0 are downstream but insulated, and 11 were correctly skipped with evidence.",
+      "data": {
+        "requires_patch": 1,
+        "downstream_unaffected": 0,
+        "skipped": 11,
+        "total_scanned": 12,
+        "max_hops_reached": 3
+      }
+    },
+    {
+      "seq": 35,
+      "ts": "2026-07-31T22:11:47.226606Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 36,
+      "ts": "2026-07-31T22:11:49.655118Z",
+      "phase": "codegen",
+      "level": "info",
+      "title": "Agent tool call: generate_patches",
+      "detail": "Executing the shared `generate_patches` repair stage.",
+      "data": {
+        "tool": "generate_patches",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 37,
+      "ts": "2026-07-31T22:11:49.666193Z",
+      "phase": "codegen",
+      "level": "info",
+      "title": "Generating deterministic patches",
+      "detail": "Only sqlglot AST transforms and round-trip-safe metadata editors may change code.",
+      "data": {}
+    },
+    {
+      "seq": 38,
+      "ts": "2026-07-31T22:11:49.669402Z",
+      "phase": "codegen",
+      "level": "info",
+      "title": "Generated 1 surgical file patches",
+      "detail": "The language model did not author or modify any Patch.after content.",
+      "data": {
+        "files": [
+          "demo-warehouse/dags/shopflow_daily.py"
+        ]
+      }
+    },
+    {
+      "seq": 39,
+      "ts": "2026-07-31T22:11:49.670318Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 40,
+      "ts": "2026-07-31T22:11:51.541882Z",
+      "phase": "validate",
+      "level": "info",
+      "title": "Agent tool call: validate_patches",
+      "detail": "Executing the shared `validate_patches` repair stage.",
+      "data": {
+        "tool": "validate_patches",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 41,
+      "ts": "2026-07-31T22:11:51.567798Z",
+      "phase": "validate",
+      "level": "info",
+      "title": "Validating every generated reference",
+      "detail": "Each SQL column must resolve against live DataHub schemaMetadata or a projected repaired output.",
+      "data": {}
+    },
+    {
+      "seq": 42,
+      "ts": "2026-07-31T22:11:51.583251Z",
+      "phase": "validate",
+      "level": "info",
+      "title": "Validation passed — zero hallucinated columns",
+      "detail": "5/5 references resolved; the PR gate is open.",
+      "data": {
+        "resolved": 5,
+        "total": 5,
+        "valid": true
+      }
+    },
+    {
+      "seq": 43,
+      "ts": "2026-07-31T22:11:51.584739Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 44,
+      "ts": "2026-07-31T22:11:54.626313Z",
+      "phase": "pr",
+      "level": "info",
+      "title": "Agent tool call: open_pull_request",
+      "detail": "Executing the shared `open_pull_request` repair stage.",
+      "data": {
+        "tool": "open_pull_request",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 45,
+      "ts": "2026-07-31T22:11:54.633865Z",
+      "phase": "pr",
+      "level": "info",
+      "title": "Preparing the review package",
+      "detail": "Rendering lineage evidence, patch strategies, validation verdicts, and skip reasons.",
+      "data": {}
+    },
+    {
+      "seq": 46,
+      "ts": "2026-07-31T22:11:58.666191Z",
+      "phase": "pr",
+      "level": "info",
+      "title": "Review package ready",
+      "detail": "dry-run review: file:///Users/yadneshsalvi/code/hackathons/datahub/datahub-repair-agent/examples/pr_bodies/rename-orders-order_placed_at.md",
+      "data": {
+        "mode": "dry-run",
+        "url": "file:///Users/yadneshsalvi/code/hackathons/datahub/datahub-repair-agent/examples/pr_bodies/rename-orders-order_placed_at.md"
+      }
+    },
+    {
+      "seq": 47,
+      "ts": "2026-07-31T22:11:58.667545Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 48,
+      "ts": "2026-07-31T22:12:02.313429Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "Agent tool call: write_back_to_datahub",
+      "detail": "Executing the shared `write_back_to_datahub` repair stage.",
+      "data": {
+        "tool": "write_back_to_datahub",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 49,
+      "ts": "2026-07-31T22:12:02.472989Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "Writing repair evidence back to DataHub",
+      "detail": "Applying corrected lineage, documentation, tags, an OSS incident, institutional memory, and a run record.",
+      "data": {}
+    },
+    {
+      "seq": 50,
+      "ts": "2026-07-31T22:12:13.420752Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: update_fine_grained_lineage",
+      "detail": "Updated corrected field lineage for 0 patched dataset(s).",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Lineage"
+      }
+    },
+    {
+      "seq": 51,
+      "ts": "2026-07-31T22:12:13.420814Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: document_column",
+      "detail": "Documented the repaired path on 1 dataset field(s).",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+      }
+    },
+    {
+      "seq": 52,
+      "ts": "2026-07-31T22:12:13.420829Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: tag_assets",
+      "detail": "Tagged the source dataset and `order_created_at` as detected; tagged 0 repaired dataset(s).",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+      }
+    },
+    {
+      "seq": 53,
+      "ts": "2026-07-31T22:12:13.420836Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: raise_incident",
+      "detail": "Reused OSS incident urn:li:incident:b08e1d39-263d-4a97-9968-c4434a8e4c43 and moved it to FIXED.",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Incidents"
+      }
+    },
+    {
+      "seq": 54,
+      "ts": "2026-07-31T22:12:13.420841Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: attach_migration_doc",
+      "detail": "Attached the PR and migration guide as InstitutionalMemory.",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+      }
+    },
+    {
+      "seq": 55,
+      "ts": "2026-07-31T22:12:13.420846Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: record_run",
+      "detail": "Recorded deterministic process run `run-c6e305ea3f234916b84d32fbedd22be6` with result SUCCESS.",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataProcessInstance/urn%3Ali%3AdataProcessInstance%3A985eb0481608dd5f88e3d3d2f498778b"
+      }
+    },
+    {
+      "seq": 56,
+      "ts": "2026-07-31T22:12:13.423927Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 57,
+      "ts": "2026-07-31T22:12:17.383915Z",
+      "phase": "done",
+      "level": "info",
+      "title": "Repair run complete",
+      "detail": "Status succeeded; 1 patches, 6 DataHub write-back actions, degraded=False.",
+      "data": {
+        "status": "succeeded",
+        "degraded": false
+      }
+    }
+  ],
+  "started_at": "2026-07-31T22:10:51.531137Z",
+  "finished_at": "2026-07-31T22:12:17.383897Z"
+}
