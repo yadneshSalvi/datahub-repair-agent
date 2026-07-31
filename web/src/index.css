@@ -1,0 +1,161 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@theme {
+  --color-bg: #08090b;
+  --color-surface: #0e1013;
+  --color-surface-2: #14171c;
+  --color-border: #1e232b;
+  --color-border-lit: #2a313b;
+  --color-text: #e8eaed;
+  --color-text-dim: #9aa3af;
+  --color-text-faint: #5c6674;
+  --color-accent: #6366f1;
+  --color-patch: #f59e0b;
+  --color-unaffected: #38bdf8;
+  --color-skipped: #4b5563;
+  --color-ok: #10b981;
+  --color-danger: #f43f5e;
+  --font-sans: "Inter Variable", Inter, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --bg: #08090b;
+  --surface: #0e1013;
+  --surface-2: #14171c;
+  --border: #1e232b;
+  --border-lit: #2a313b;
+  --text: #e8eaed;
+  --text-dim: #9aa3af;
+  --text-faint: #5c6674;
+  --accent: #6366f1;
+  --patch: #f59e0b;
+  --unaffected: #38bdf8;
+  --skipped: #4b5563;
+  --ok: #10b981;
+  --danger: #f43f5e;
+  color: var(--text);
+  background: var(--bg);
+  font-family: "Inter Variable", Inter, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-lit) transparent;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 70% -10%, rgb(99 102 241 / 0.09), transparent 34rem),
+    var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.011em;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+::selection {
+  background: rgb(99 102 241 / 0.35);
+  color: white;
+}
+
+@keyframes sheen {
+  0% { transform: translateX(-140%) skewX(-18deg); }
+  100% { transform: translateX(320%) skewX(-18deg); }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.84); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.surface-elevation {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 16px 38px rgb(0 0 0 / 0.2);
+}
+
+.dot-grid {
+  background-image: radial-gradient(rgb(92 102 116 / 0.24) 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.react-flow__controls-button {
+  width: 28px !important;
+  height: 28px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--surface-2) !important;
+  fill: var(--text-dim) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--border) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
