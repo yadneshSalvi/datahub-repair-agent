@@ -11,8 +11,10 @@ license = { file = "LICENSE" }
 requires-python = ">=3.11,<3.12"
 dependencies = [
   "acryl-datahub[datahub-rest]==1.6.0.16",
+  "fastapi",
   "httpx",
   "jinja2",
+  "openai-agents==0.19.1",
   "pydantic>=2",
   "pydantic-settings",
   "python-dotenv",
@@ -20,6 +22,7 @@ dependencies = [
   "ruamel-yaml",
   "sqlglot",
   "typer",
+  "uvicorn[standard]",
 ]
 
 [project.optional-dependencies]

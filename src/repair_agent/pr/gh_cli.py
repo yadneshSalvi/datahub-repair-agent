@@ -1,0 +1,159 @@
+"""GitHub CLI PR provider isolated in a temporary git worktree."""
+
+from __future__ import annotations
+
+import logging
+import shutil
+import subprocess
+import tempfile
+from collections.abc import Callable
+from pathlib import Path
+
+from repair_agent.models import PRRequest, PullRequestResult
+from repair_agent.pr.base import PRProvider
+from repair_agent.pr.dry_run import DryRunPRProvider
+
+LOGGER = logging.getLogger(__name__)
+
+
+class GhCliPRProvider:
+    """Commit, push, and open a PR without changing the user's working tree."""
+
+    def __init__(
+        self,
+        repo_root: Path | str,
+        *,
+        fallback: PRProvider | None = None,
+        on_degradation: Callable[[str], None] | None = None,
+    ) -> None:
+        self.repo_root = Path(repo_root).resolve()
+        self.fallback = fallback or DryRunPRProvider(self.repo_root / "examples" / "pr_bodies")
+        self.on_degradation = on_degradation
+
+    def open_pr(self, request: PRRequest) -> PullRequestResult:
+        """Open a GitHub PR, falling back safely when authentication is unavailable."""
+
+        try:
+            auth = subprocess.run(
+                ["gh", "auth", "status"],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as exc:
+            auth_error = str(exc)
+        else:
+            auth_error = auth.stderr.strip() if auth.returncode != 0 else ""
+        if auth_error:
+            reason = (
+                "GitHub CLI authentication failed; wrote a dry-run PR instead. "
+                f"Run `gh auth login` to enable live mode. Detail: {auth_error}"
+            )
+            LOGGER.warning(reason)
+            if self.on_degradation is not None:
+                self.on_degradation(reason)
+            return self.fallback.open_pr(request)
+
+        worktree: Path | None = None
+        try:
+            worktree = Path(tempfile.mkdtemp(prefix="repair-agent-worktree-"))
+            self._run(
+                [
+                    "git",
+                    "-C",
+                    str(self.repo_root),
+                    "worktree",
+                    "add",
+                    str(worktree),
+                    "-b",
+                    request.branch,
+                    f"origin/{request.base}",
+                ]
+            )
+            changed_paths: list[str] = []
+            for change in request.files:
+                target = _safe_target(worktree, change.path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(change.content, encoding="utf-8")
+                changed_paths.append(change.path)
+            self._run(["git", "-C", str(worktree), "add", "--", *changed_paths])
+            self._run(
+                [
+                    "git",
+                    "-C",
+                    str(worktree),
+                    "-c",
+                    "user.name=Schema-Drift Auto-Repair Agent",
+                    "-c",
+                    "user.email=repair-agent@users.noreply.github.com",
+                    "commit",
+                    "-m",
+                    request.commit_message,
+                ]
+            )
+            self._run(["git", "-C", str(worktree), "push", "-u", "origin", request.branch])
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".md", encoding="utf-8") as body_file:
+                body_file.write(request.body_markdown)
+                body_file.flush()
+                created = self._run(
+                    [
+                        "gh",
+                        "pr",
+                        "create",
+                        "--base",
+                        request.base,
+                        "--head",
+                        request.branch,
+                        "--title",
+                        request.title,
+                        "--body-file",
+                        body_file.name,
+                    ],
+                    cwd=self.repo_root,
+                )
+            url = next((line.strip() for line in created.stdout.splitlines() if line.strip().startswith("http")), "")
+            if not url:
+                raise RuntimeError("`gh pr create` succeeded but returned no PR URL; inspect the GitHub repository.")
+            number_text = url.rstrip("/").rsplit("/", 1)[-1]
+            return PullRequestResult(
+                mode="live",
+                url=url,
+                branch=request.branch,
+                title=request.title,
+                number=int(number_text) if number_text.isdigit() else None,
+                files=changed_paths,
+            )
+        except Exception as exc:
+            return PullRequestResult(
+                mode="live",
+                url="",
+                branch=request.branch,
+                title=request.title,
+                files=[change.path for change in request.files],
+                ok=False,
+                error=f"Could not open the GitHub PR: {exc}. Inspect git/gh output and retry, or use --pr-mode dry-run.",
+            )
+        finally:
+            if worktree is not None:
+                cleanup = subprocess.run(
+                    ["git", "-C", str(self.repo_root), "worktree", "remove", "--force", str(worktree)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if cleanup.returncode != 0:
+                    LOGGER.warning("Could not remove temporary worktree %s: %s", worktree, cleanup.stderr.strip())
+                if worktree.exists():
+                    shutil.rmtree(worktree, ignore_errors=True)
+
+    @staticmethod
+    def _run(command: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=True)
+
+
+def _safe_target(worktree: Path, relative_path: str) -> Path:
+    target = (worktree / relative_path).resolve()
+    if target != worktree and worktree not in target.parents:
+        raise ValueError(f"PR file path {relative_path!r} escapes the temporary worktree.")
+    return target

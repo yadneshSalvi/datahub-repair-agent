@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from repair_agent.config import Settings, get_settings
@@ -20,7 +22,13 @@ def build_datahub_mcp_server(settings: Settings | None = None) -> Any:
         "DATAHUB_GMS_URL": config.datahub_gms_url,
         "TOOLS_IS_MUTATION_ENABLED": "true",
         "DATAHUB_TELEMETRY_ENABLED": "false",
+        "UV_TOOL_DIR": os.environ.get(
+            "UV_TOOL_DIR",
+            str(Path(tempfile.gettempdir()) / "repair-agent-uv-tools"),
+        ),
     }
+    if os.environ.get("UV_CACHE_DIR"):
+        environment["UV_CACHE_DIR"] = os.environ["UV_CACHE_DIR"]
     if config.datahub_gms_token:
         environment["DATAHUB_GMS_TOKEN"] = config.datahub_gms_token
 

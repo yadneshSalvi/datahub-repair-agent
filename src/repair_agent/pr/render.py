@@ -17,6 +17,9 @@ def render_pr_body(
     run_id: str,
     datahub_instance: str,
     timestamp: datetime,
+    narrative_summary: str | None = None,
+    risk_note: str | None = None,
+    reviewer_checklist: list[str] | None = None,
 ) -> str:
     """Render the required PR sections from engine output only."""
 
@@ -66,6 +69,9 @@ def render_pr_body(
             run_id=run_id,
             datahub_instance=datahub_instance,
             timestamp=timestamp.isoformat(),
+            narrative_summary=narrative_summary,
+            risk_note=risk_note,
+            reviewer_checklist=reviewer_checklist or [],
         ).rstrip()
         + "\n"
     )

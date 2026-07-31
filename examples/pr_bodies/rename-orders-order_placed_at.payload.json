@@ -1,0 +1,12 @@
+{
+  "branch": "repair/rename-orders-order_placed_at",
+  "base": "main",
+  "title": "Repair shop_prod.raw.orders: order_placed_at \u2192 order_created_at",
+  "commit_message": "Repair schema drift rename-orders-order_placed_at",
+  "files": [
+    "demo-warehouse/dags/shopflow_daily.py",
+    "demo-warehouse/models/marts/fct_orders.sql",
+    "demo-warehouse/models/staging/stg_orders.sql",
+    "demo-warehouse/models/staging/schema.yml"
+  ]
+}

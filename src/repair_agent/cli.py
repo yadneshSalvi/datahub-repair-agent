@@ -2,24 +2,26 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from repair_agent.codegen.generator import generate_patches
+from repair_agent.agent.runner import run_repair
 from repair_agent.config import get_settings
 from repair_agent.datahub_io.client import DataHubIO
 from repair_agent.drift.detect import detect_drift
 from repair_agent.drift.snapshot import SchemaSnapshot
 from repair_agent.examples import generate_examples
 from repair_agent.impact.engine import CodeMapMissing, analyze
-from repair_agent.models import DriftEvent, ImpactReport, Patch
-from repair_agent.validate.validator import validate_patches
+from repair_agent.models import DriftEvent, ImpactReport, Patch, RunEvent
 
 app = typer.Typer(help="Schema-Drift Auto-Repair Agent.", no_args_is_help=True)
 CONSOLE = Console()
@@ -128,26 +130,31 @@ def run_command(
     pr_mode: Annotated[str, typer.Option(help="Reserved for Slice C: dry-run or live.")] = "dry-run",
     no_llm: Annotated[bool, typer.Option("--no-llm", help="Use the deterministic pipeline only.")] = False,
 ) -> None:
-    """Analyze, generate, and hard-gate patches without modifying source files."""
+    """Run the complete agent, PR, and DataHub write-back workflow."""
 
     if pr_mode not in {"dry-run", "live"}:
         _fail(ValueError("--pr-mode must be `dry-run` or `live`."))
     try:
-        io = DataHubIO()
-        drift = _event(io, drift_id)
-        report = analyze(drift, io)
-        patches = generate_patches(report)
-        validate_patches(patches, io, drift)
+        run = asyncio.run(
+            run_repair(
+                run_id=f"cli-{uuid4().hex[:12]}",
+                drift_id=drift_id,
+                use_llm=not no_llm,
+                pr_mode=pr_mode,
+            )
+        )
     except Exception as exc:
         _fail(exc)
-    _print_impact(report)
-    _print_patches(patches)
-    references = [reference for patch in patches for reference in patch.references]
+    _print_events(run.events)
+    if run.impact is not None:
+        _print_impact(run.impact)
+    _print_patches(run.patches)
+    references = [reference for patch in run.patches for reference in patch.references]
     resolved = sum(reference.status == "OK" for reference in references)
     live = sum(reference.source == "live_catalog" for reference in references)
     projected = sum(reference.source == "projected_repair" for reference in references)
     cte = sum(reference.source == "local_cte" for reference in references)
-    valid = all(patch.valid for patch in patches)
+    valid = bool(run.patches) and all(patch.valid for patch in run.patches)
     color = "green" if valid else "red"
     CONSOLE.print(
         f"\n[bold {color}]VALIDATION {'PASSED' if valid else 'BLOCKED'}:[/] "
@@ -155,10 +162,23 @@ def run_command(
         f"{live} against live DataHub schemas, {projected} against projected repair outputs, "
         f"{cte} locally derived. 0 hallucinated columns."
     )
-    CONSOLE.print(f"[dim]Mode: deterministic core{' (--no-llm)' if no_llm else ''}; no source files were modified.[/]")
-    CONSOLE.print(f"[bold yellow]PENDING SLICE C — PR phase:[/] requested mode `{pr_mode}`; no PR was created or faked.")
-    CONSOLE.print("[bold yellow]PENDING SLICE C — write-back phase:[/] no DataHub metadata was written.")
-    if not valid:
+    CONSOLE.print(
+        f"[bold]Run summary:[/] status={run.status} · degraded={run.degraded} · "
+        f"patches={len(run.patches)} · writebacks={len(run.writeback)}"
+    )
+    for degradation in run.degradations:
+        CONSOLE.print(f"[yellow]Degradation:[/] {degradation}")
+    if run.pr is not None:
+        CONSOLE.print(f"[bold]PR review ({run.pr.mode}):[/] {run.pr.url}")
+    if run.writeback:
+        table = Table(title="DataHub write-back actions")
+        table.add_column("Action")
+        table.add_column("OK")
+        table.add_column("DataHub URL", overflow="fold")
+        for action in run.writeback:
+            table.add_row(action.kind, "yes" if action.ok else "NO", action.datahub_url)
+        CONSOLE.print(table)
+    if run.status != "succeeded" or not valid:
         raise typer.Exit(code=1)
 
 
@@ -209,9 +229,22 @@ def _print_patches(patches: list[Patch]) -> None:
     table.add_column("File")
     table.add_column("Kind")
     table.add_column("Valid")
+    table.add_column("Patch.after SHA-256", no_wrap=True)
     table.add_column("Strategy", overflow="fold")
     for patch in patches:
-        table.add_row(patch.file_path, patch.kind, "yes" if patch.valid else "BLOCKED", patch.strategy)
+        digest = hashlib.sha256(patch.after.encode()).hexdigest()[:16]
+        table.add_row(patch.file_path, patch.kind, "yes" if patch.valid else "BLOCKED", digest, patch.strategy)
+    CONSOLE.print(table)
+
+
+def _print_events(events: list[RunEvent]) -> None:
+    table = Table(title="Run event log")
+    table.add_column("#", justify="right")
+    table.add_column("Phase")
+    table.add_column("Event")
+    table.add_column("Detail", overflow="fold")
+    for event in events:
+        table.add_row(str(event.seq), event.phase, event.title, event.detail)
     CONSOLE.print(table)
 
 

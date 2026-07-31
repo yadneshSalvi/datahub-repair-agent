@@ -1,0 +1,1393 @@
+{
+  "id": "run-82f578edde6d436b84dc1dee1b248c74",
+  "status": "succeeded",
+  "degraded": false,
+  "degradations": [],
+  "drift": {
+    "id": "rename-orders-order_placed_at",
+    "kind": "RENAME",
+    "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+    "dataset_name": "shop_prod.raw.orders",
+    "old_column": "order_placed_at",
+    "new_column": "order_created_at",
+    "old_type": "TIMESTAMP_NTZ",
+    "new_type": "TIMESTAMP_NTZ",
+    "confidence": 0.95,
+    "rationale": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+    "detected_at": "2026-07-31T20:33:16.430168Z"
+  },
+  "impact": {
+    "drift": {
+      "id": "rename-orders-order_placed_at",
+      "kind": "RENAME",
+      "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "dataset_name": "shop_prod.raw.orders",
+      "old_column": "order_placed_at",
+      "new_column": "order_created_at",
+      "old_type": "TIMESTAMP_NTZ",
+      "new_type": "TIMESTAMP_NTZ",
+      "confidence": 0.95,
+      "rationale": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+      "detected_at": "2026-07-31T20:33:16.430168Z"
+    },
+    "assets": [
+      {
+        "urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+        "name": "extract_recent_orders",
+        "kind": "airflow_task",
+        "bucket": "REQUIRES_PATCH",
+        "hops": 1,
+        "matched_columns": [
+          "order_placed_at"
+        ],
+        "code_path": "demo-warehouse/dags/shopflow_daily.py",
+        "reason": "DataHub table lineage links this Airflow task to `shop_prod.raw.orders`, and its configured SQL constant references `order_placed_at` exactly 2 times on lines 2, 4.",
+        "lineage_path": [
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+            "downstream_column": "order_placed_at",
+            "transform_operation": "DIRECT_SQL_REFERENCE",
+            "hops": 1
+          }
+        ],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+        "name": "fct_orders",
+        "kind": "dbt_model",
+        "bucket": "REQUIRES_PATCH",
+        "hops": 2,
+        "matched_columns": [
+          "order_date",
+          "order_placed_at"
+        ],
+        "code_path": "demo-warehouse/models/marts/fct_orders.sql",
+        "reason": "SQL references `order_placed_at` exactly once on line 12; this lineage-bearing file requires repair.",
+        "lineage_path": [
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "downstream_column": "order_placed_at",
+            "transform_operation": "IDENTITY",
+            "hops": 1
+          },
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+            "downstream_column": "order_date",
+            "transform_operation": "CAST_DATE",
+            "hops": 2
+          }
+        ],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+        "name": "stg_orders",
+        "kind": "dbt_model",
+        "bucket": "REQUIRES_PATCH",
+        "hops": 1,
+        "matched_columns": [
+          "order_placed_at"
+        ],
+        "code_path": "demo-warehouse/models/staging/stg_orders.sql",
+        "reason": "SQL references `order_placed_at` exactly once on line 7; this lineage-bearing file requires repair.",
+        "lineage_path": [
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "downstream_column": "order_placed_at",
+            "transform_operation": "IDENTITY",
+            "hops": 1
+          }
+        ],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)",
+        "name": "mart_customer_ltv",
+        "kind": "dbt_model",
+        "bucket": "DOWNSTREAM_UNAFFECTED",
+        "hops": 3,
+        "matched_columns": [
+          "first_order_date",
+          "order_date",
+          "order_placed_at"
+        ],
+        "code_path": "demo-warehouse/models/marts/mart_customer_ltv.sql",
+        "reason": "Reads `order_date`, aliases created upstream on the changed column's lineage path; `order_placed_at` does not appear in this file's SQL. Flagged for review only.",
+        "lineage_path": [
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "downstream_column": "order_placed_at",
+            "transform_operation": "IDENTITY",
+            "hops": 1
+          },
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+            "downstream_column": "order_date",
+            "transform_operation": "CAST_DATE",
+            "hops": 2
+          },
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+            "upstream_column": "order_date",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)",
+            "downstream_column": "first_order_date",
+            "transform_operation": "MIN",
+            "hops": 3
+          }
+        ],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)",
+        "name": "mart_daily_revenue",
+        "kind": "dbt_model",
+        "bucket": "DOWNSTREAM_UNAFFECTED",
+        "hops": 3,
+        "matched_columns": [
+          "order_date",
+          "order_placed_at"
+        ],
+        "code_path": "demo-warehouse/models/marts/mart_daily_revenue.sql",
+        "reason": "Reads `order_date`, aliases created upstream on the changed column's lineage path; `order_placed_at` does not appear in this file's SQL. Flagged for review only.",
+        "lineage_path": [
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "downstream_column": "order_placed_at",
+            "transform_operation": "IDENTITY",
+            "hops": 1
+          },
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+            "upstream_column": "order_placed_at",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+            "downstream_column": "order_date",
+            "transform_operation": "CAST_DATE",
+            "hops": 2
+          },
+          {
+            "upstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+            "upstream_column": "order_date",
+            "downstream_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)",
+            "downstream_column": "order_date",
+            "transform_operation": "IDENTITY",
+            "hops": 3
+          }
+        ],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_customers,PROD)",
+        "name": "dim_customers",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/dim_customers.sql",
+        "reason": "In the table-level downstream graph, but consumes `stg_customers` columns {country_code, customer_id, email, full_name, marketing_opt_in, signup_date}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_products,PROD)",
+        "name": "dim_products",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/dim_products.sql",
+        "reason": "In the table-level downstream graph, but consumes `stg_products` columns {category, list_price, product_id, product_name, sku}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_product_performance,PROD)",
+        "name": "mart_product_performance",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 3,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/marts/mart_product_performance.sql",
+        "reason": "In the table-level downstream graph, but consumes `dim_products` columns {category, product_id, sku}; `stg_order_items` columns {line_total, quantity}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_customers,PROD)",
+        "name": "stg_customers",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_customers.sql",
+        "reason": "In the table-level downstream graph, but consumes `customers` columns {country_code, customer_id, email, full_name, marketing_opt_in, signup_date}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_order_items,PROD)",
+        "name": "stg_order_items",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_order_items.sql",
+        "reason": "In the table-level downstream graph, but consumes `order_items` columns {order_id, order_item_id, product_id, quantity, unit_price}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_products,PROD)",
+        "name": "stg_products",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_products.sql",
+        "reason": "In the table-level downstream graph, but consumes `products` columns {category, list_price, product_id, product_name, sku}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_web_events,PROD)",
+        "name": "stg_web_events",
+        "kind": "dbt_model",
+        "bucket": "SKIPPED",
+        "hops": 2,
+        "matched_columns": [],
+        "code_path": "demo-warehouse/models/staging/stg_web_events.sql",
+        "reason": "In the table-level downstream graph, but consumes `web_events` columns {customer_id, event_at, event_id, event_type, session_id}; none is on the exact `shop_prod.raw.orders.order_placed_at` column-lineage path.",
+        "lineage_path": [],
+        "captured_queries": []
+      }
+    ],
+    "graph": {
+      "nodes": [
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+          "name": "shop_prod.raw.orders",
+          "kind": "dataset",
+          "bucket": null,
+          "columns": [
+            "order_placed_at"
+          ],
+          "hops": 0,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+          "name": "extract_recent_orders",
+          "kind": "airflow_task",
+          "bucket": "REQUIRES_PATCH",
+          "columns": [
+            "order_placed_at"
+          ],
+          "hops": 1,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3AdataJob%3A%28urn%3Ali%3AdataFlow%3A%28airflow%2Cshopflow_daily%2CPROD%29%2Cextract_recent_orders%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+          "name": "fct_orders",
+          "kind": "dbt_model",
+          "bucket": "REQUIRES_PATCH",
+          "columns": [
+            "order_date",
+            "order_placed_at"
+          ],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.fct_orders%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+          "name": "stg_orders",
+          "kind": "dbt_model",
+          "bucket": "REQUIRES_PATCH",
+          "columns": [
+            "order_placed_at"
+          ],
+          "hops": 1,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_orders%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)",
+          "name": "mart_customer_ltv",
+          "kind": "dbt_model",
+          "bucket": "DOWNSTREAM_UNAFFECTED",
+          "columns": [
+            "first_order_date",
+            "order_date",
+            "order_placed_at"
+          ],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.mart_customer_ltv%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)",
+          "name": "mart_daily_revenue",
+          "kind": "dbt_model",
+          "bucket": "DOWNSTREAM_UNAFFECTED",
+          "columns": [
+            "order_date",
+            "order_placed_at"
+          ],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.mart_daily_revenue%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_customers,PROD)",
+          "name": "dim_customers",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.dim_customers%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.dim_products,PROD)",
+          "name": "dim_products",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.dim_products%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_product_performance,PROD)",
+          "name": "mart_product_performance",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 3,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.mart_product_performance%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_customers,PROD)",
+          "name": "stg_customers",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_customers%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_order_items,PROD)",
+          "name": "stg_order_items",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_order_items%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_products,PROD)",
+          "name": "stg_products",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_products%2CPROD%29"
+        },
+        {
+          "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_web_events,PROD)",
+          "name": "stg_web_events",
+          "kind": "dbt_model",
+          "bucket": "SKIPPED",
+          "columns": [],
+          "hops": 2,
+          "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Adbt%2Cshop_prod.analytics.stg_web_events%2CPROD%29"
+        }
+      ],
+      "edges": [
+        {
+          "source_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+          "target_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+          "source_columns": [
+            "order_placed_at"
+          ],
+          "target_columns": [
+            "order_placed_at"
+          ],
+          "transform_operation": "IDENTITY"
+        },
+        {
+          "source_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+          "target_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+          "source_columns": [
+            "order_placed_at"
+          ],
+          "target_columns": [
+            "order_date"
+          ],
+          "transform_operation": "CAST_DATE"
+        },
+        {
+          "source_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+          "target_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_customer_ltv,PROD)",
+          "source_columns": [
+            "order_date"
+          ],
+          "target_columns": [
+            "first_order_date"
+          ],
+          "transform_operation": "MIN"
+        },
+        {
+          "source_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+          "target_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.mart_daily_revenue,PROD)",
+          "source_columns": [
+            "order_date"
+          ],
+          "target_columns": [
+            "order_date"
+          ],
+          "transform_operation": "IDENTITY"
+        },
+        {
+          "source_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+          "target_urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+          "source_columns": [
+            "order_placed_at"
+          ],
+          "target_columns": [
+            "order_placed_at"
+          ],
+          "transform_operation": "DIRECT_SQL_REFERENCE"
+        }
+      ]
+    },
+    "stats": {
+      "requires_patch": 3,
+      "downstream_unaffected": 2,
+      "skipped": 7,
+      "total_scanned": 12,
+      "max_hops_reached": 3
+    }
+  },
+  "patches": [
+    {
+      "asset_urn": "urn:li:dataJob:(urn:li:dataFlow:(airflow,shopflow_daily,PROD),extract_recent_orders)",
+      "file_path": "demo-warehouse/dags/shopflow_daily.py",
+      "before": "\"\"\"Daily ShopFlow extraction and dbt transformation DAG.\"\"\"\n\nfrom __future__ import annotations\n\nfrom datetime import datetime\n\nfrom airflow import DAG\nfrom airflow.operators.bash import BashOperator\nfrom airflow.providers.snowflake.operators.snowflake import SnowflakeOperator\n\n\nRECENT_ORDERS_SQL = \"\"\"\nselect order_id, customer_id, order_placed_at, gross_amount\nfrom shop_prod.raw.orders\nwhere order_placed_at >= dateadd('day', -1, current_timestamp())\n\"\"\"\n\nPRODUCT_CATALOG_SQL = \"\"\"\nselect product_id, sku, product_name, category, list_price\nfrom shop_prod.raw.products\nwhere product_id is not null\n\"\"\"\n\n\nwith DAG(\n    dag_id=\"shopflow_daily\",\n    description=\"Extract recent ShopFlow data and refresh the dbt warehouse.\",\n    start_date=datetime(2026, 1, 1),\n    schedule=\"0 5 * * *\",\n    catchup=False,\n    tags=[\"shopflow\", \"datahub-demo\"],\n) as dag:\n    extract_recent_orders = SnowflakeOperator(\n        task_id=\"extract_recent_orders\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=RECENT_ORDERS_SQL,\n    )\n\n    refresh_product_catalog = SnowflakeOperator(\n        task_id=\"refresh_product_catalog\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=PRODUCT_CATALOG_SQL,\n    )\n\n    run_dbt_staging = BashOperator(\n        task_id=\"run_dbt_staging\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select staging\",\n    )\n\n    run_dbt_marts = BashOperator(\n        task_id=\"run_dbt_marts\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select marts\",\n    )\n\n    [extract_recent_orders, refresh_product_catalog] >> run_dbt_staging >> run_dbt_marts\n\n",
+      "after": "\"\"\"Daily ShopFlow extraction and dbt transformation DAG.\"\"\"\n\nfrom __future__ import annotations\n\nfrom datetime import datetime\n\nfrom airflow import DAG\nfrom airflow.operators.bash import BashOperator\nfrom airflow.providers.snowflake.operators.snowflake import SnowflakeOperator\n\n\nRECENT_ORDERS_SQL = \"\"\"\nselect order_id, customer_id, order_created_at, gross_amount\nfrom shop_prod.raw.orders\nwhere order_created_at >= dateadd('day', -1, current_timestamp())\n\"\"\"\n\nPRODUCT_CATALOG_SQL = \"\"\"\nselect product_id, sku, product_name, category, list_price\nfrom shop_prod.raw.products\nwhere product_id is not null\n\"\"\"\n\n\nwith DAG(\n    dag_id=\"shopflow_daily\",\n    description=\"Extract recent ShopFlow data and refresh the dbt warehouse.\",\n    start_date=datetime(2026, 1, 1),\n    schedule=\"0 5 * * *\",\n    catchup=False,\n    tags=[\"shopflow\", \"datahub-demo\"],\n) as dag:\n    extract_recent_orders = SnowflakeOperator(\n        task_id=\"extract_recent_orders\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=RECENT_ORDERS_SQL,\n    )\n\n    refresh_product_catalog = SnowflakeOperator(\n        task_id=\"refresh_product_catalog\",\n        snowflake_conn_id=\"shopflow_snowflake\",\n        sql=PRODUCT_CATALOG_SQL,\n    )\n\n    run_dbt_staging = BashOperator(\n        task_id=\"run_dbt_staging\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select staging\",\n    )\n\n    run_dbt_marts = BashOperator(\n        task_id=\"run_dbt_marts\",\n        bash_command=\"cd /opt/airflow/demo-warehouse && dbt run --select marts\",\n    )\n\n    [extract_recent_orders, refresh_product_catalog] >> run_dbt_staging >> run_dbt_marts\n\n",
+      "unified_diff": "--- a/demo-warehouse/dags/shopflow_daily.py\n+++ b/demo-warehouse/dags/shopflow_daily.py\n@@ -10,9 +10,9 @@\n \n \n RECENT_ORDERS_SQL = \"\"\"\n-select order_id, customer_id, order_placed_at, gross_amount\n+select order_id, customer_id, order_created_at, gross_amount\n from shop_prod.raw.orders\n-where order_placed_at >= dateadd('day', -1, current_timestamp())\n+where order_created_at >= dateadd('day', -1, current_timestamp())\n \"\"\"\n \n PRODUCT_CATALOG_SQL = \"\"\"\n",
+      "kind": "airflow_python",
+      "references": [
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_id",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "customer_id",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.customer_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_created_at",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_created_at` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "gross_amount",
+          "line": 2,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.gross_amount` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_created_at",
+          "line": 4,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_created_at` against the live DataHub schema.",
+          "source": "live_catalog"
+        }
+      ],
+      "valid": true,
+      "strategy": "Renamed exact `order_placed_at` references inside RECENT_ORDERS_SQL while preserving the module's triple-quoted string style and indentation."
+    },
+    {
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.fct_orders,PROD)",
+      "file_path": "demo-warehouse/models/marts/fct_orders.sql",
+      "before": "with orders as (\n    select * from {{ ref('stg_orders') }}\n),\nitems as (\n    select order_id, count(*) as item_count\n    from {{ ref('stg_order_items') }}\n    group by order_id\n)\nselect\n    o.order_id,\n    o.customer_id,\n    cast(o.order_placed_at as date) as order_date,\n    o.order_status,\n    coalesce(i.item_count, 0) as item_count,\n    o.net_amount as net_revenue\nfrom orders o\nleft join items i on o.order_id = i.order_id\n\n",
+      "after": "with orders as (\n    select * from {{ ref('stg_orders') }}\n),\nitems as (\n    select order_id, count(*) as item_count\n    from {{ ref('stg_order_items') }}\n    group by order_id\n)\nselect\n    o.order_id,\n    o.customer_id,\n    cast(o.order_created_at as date) as order_date,\n    o.order_status,\n    coalesce(i.item_count, 0) as item_count,\n    o.net_amount as net_revenue\nfrom orders o\nleft join items i on o.order_id = i.order_id\n\n",
+      "unified_diff": "--- a/demo-warehouse/models/marts/fct_orders.sql\n+++ b/demo-warehouse/models/marts/fct_orders.sql\n@@ -9,7 +9,7 @@\n select\n     o.order_id,\n     o.customer_id,\n-    cast(o.order_placed_at as date) as order_date,\n+    cast(o.order_created_at as date) as order_date,\n     o.order_status,\n     coalesce(i.item_count, 0) as item_count,\n     o.net_amount as net_revenue\n",
+      "kind": "dbt_sql",
+      "references": [
+        {
+          "table": "shop_prod.analytics.stg_order_items",
+          "column": "order_id",
+          "line": 5,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_order_items.order_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.analytics.stg_order_items",
+          "column": "order_id",
+          "line": 7,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_order_items.order_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.analytics.stg_orders",
+          "column": "order_id",
+          "line": 10,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_orders.order_id` against the projected repaired schema.",
+          "source": "projected_repair"
+        },
+        {
+          "table": "shop_prod.analytics.stg_orders",
+          "column": "customer_id",
+          "line": 11,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_orders.customer_id` against the projected repaired schema.",
+          "source": "projected_repair"
+        },
+        {
+          "table": "shop_prod.analytics.stg_orders",
+          "column": "order_created_at",
+          "line": 12,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_orders.order_created_at` against the projected repaired schema.",
+          "source": "projected_repair"
+        },
+        {
+          "table": "shop_prod.analytics.stg_orders",
+          "column": "order_status",
+          "line": 13,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_orders.order_status` against the projected repaired schema.",
+          "source": "projected_repair"
+        },
+        {
+          "table": "CTE i",
+          "column": "item_count",
+          "line": 14,
+          "status": "OK",
+          "detail": "Resolved `i.item_count` as a locally derived CTE output; its input references are validated separately.",
+          "source": "local_cte"
+        },
+        {
+          "table": "shop_prod.analytics.stg_orders",
+          "column": "net_amount",
+          "line": 15,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_orders.net_amount` against the projected repaired schema.",
+          "source": "projected_repair"
+        },
+        {
+          "table": "shop_prod.analytics.stg_orders",
+          "column": "order_id",
+          "line": 17,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.analytics.stg_orders.order_id` against the projected repaired schema.",
+          "source": "projected_repair"
+        },
+        {
+          "table": "CTE i",
+          "column": "order_id",
+          "line": 17,
+          "status": "OK",
+          "detail": "Resolved `i.order_id` as a locally derived CTE output; its input references are validated separately.",
+          "source": "local_cte"
+        }
+      ],
+      "valid": true,
+      "strategy": "Renamed only exact AST column references from `order_placed_at` to `order_created_at`; output aliases and unrelated formatting were preserved."
+    },
+    {
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+      "file_path": "demo-warehouse/models/staging/stg_orders.sql",
+      "before": "with source as (\n    select * from {{ source('shop_raw', 'orders') }}\n)\nselect\n    order_id,\n    customer_id,\n    order_placed_at,\n    order_status,\n    gross_amount,\n    gross_amount - coalesce(discount_amount, 0) as net_amount\nfrom source\nwhere order_status != 'cancelled'\n\n",
+      "after": "with source as (\n    select * from {{ source('shop_raw', 'orders') }}\n)\nselect\n    order_id,\n    customer_id,\n    order_created_at,\n    order_status,\n    gross_amount,\n    gross_amount - coalesce(discount_amount, 0) as net_amount\nfrom source\nwhere order_status != 'cancelled'\n\n",
+      "unified_diff": "--- a/demo-warehouse/models/staging/stg_orders.sql\n+++ b/demo-warehouse/models/staging/stg_orders.sql\n@@ -4,7 +4,7 @@\n select\n     order_id,\n     customer_id,\n-    order_placed_at,\n+    order_created_at,\n     order_status,\n     gross_amount,\n     gross_amount - coalesce(discount_amount, 0) as net_amount\n",
+      "kind": "dbt_sql",
+      "references": [
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_id",
+          "line": 5,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "customer_id",
+          "line": 6,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.customer_id` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_created_at",
+          "line": 7,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_created_at` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_status",
+          "line": 8,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_status` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "gross_amount",
+          "line": 9,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.gross_amount` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "gross_amount",
+          "line": 10,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.gross_amount` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "discount_amount",
+          "line": 10,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.discount_amount` against the live DataHub schema.",
+          "source": "live_catalog"
+        },
+        {
+          "table": "shop_prod.raw.orders",
+          "column": "order_status",
+          "line": 12,
+          "status": "OK",
+          "detail": "Resolved `shop_prod.raw.orders.order_status` against the live DataHub schema.",
+          "source": "live_catalog"
+        }
+      ],
+      "valid": true,
+      "strategy": "Renamed only exact AST column references from `order_placed_at` to `order_created_at`; output aliases and unrelated formatting were preserved."
+    },
+    {
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)",
+      "file_path": "demo-warehouse/models/staging/schema.yml",
+      "before": "version: 2\n\nmodels:\n  - name: stg_orders\n    description: Clean, non-cancelled orders with a computed net amount.\n    columns:\n      - name: order_id\n        description: Stable order primary key.\n        tests: [not_null, unique]\n      - name: customer_id\n        description: Customer who placed the order.\n        tests: [not_null]\n      - name: order_placed_at\n        description: Timestamp at which the order was placed.\n        tests: [not_null]\n      - name: order_status\n        description: Current lifecycle status of the order.\n        tests: [not_null]\n      - name: gross_amount\n        description: Gross order value before discounts.\n        tests: [not_null]\n      - name: net_amount\n        description: Gross order value less any discount.\n        tests: [not_null]\n\n  - name: stg_customers\n    description: Typed customer accounts and marketing preferences.\n    columns:\n      - name: customer_id\n        description: Stable customer primary key.\n        tests: [not_null, unique]\n      - name: email\n        description: Customer email address classified as PII.\n        tests: [not_null]\n      - name: full_name\n        description: Customer full name classified as PII.\n        tests: [not_null]\n      - name: signup_date\n        description: Date the customer registered.\n        tests: [not_null]\n      - name: country_code\n        description: Two-letter customer country code.\n        tests: [not_null]\n      - name: marketing_opt_in\n        description: Whether the customer accepts marketing messages.\n        tests: [not_null]\n\n  - name: stg_order_items\n    description: Order lines enriched with their extended line total.\n    columns:\n      - name: order_item_id\n        description: Stable order-line primary key.\n        tests: [not_null, unique]\n      - name: order_id\n        description: Parent order identifier.\n        tests: [not_null]\n      - name: product_id\n        description: Purchased product identifier.\n        tests: [not_null]\n      - name: quantity\n        description: Number of product units purchased.\n        tests: [not_null]\n      - name: unit_price\n        description: Price per product unit at purchase time.\n        tests: [not_null]\n      - name: line_total\n        description: Quantity multiplied by unit price.\n        tests: [not_null]\n\n  - name: stg_products\n    description: Typed product catalog records.\n    columns:\n      - name: product_id\n        description: Stable product primary key.\n        tests: [not_null, unique]\n      - name: sku\n        description: Merchant stock-keeping unit.\n        tests: [not_null, unique]\n      - name: product_name\n        description: Customer-facing product name.\n        tests: [not_null]\n      - name: category\n        description: Merchandising category.\n        tests: [not_null]\n      - name: list_price\n        description: Current catalog list price.\n        tests: [not_null]\n\n  - name: stg_web_events\n    description: Storefront interaction events used by analytics.\n    columns:\n      - name: event_id\n        description: Stable event identifier.\n        tests: [not_null, unique]\n      - name: session_id\n        description: Browser session identifier.\n        tests: [not_null]\n      - name: customer_id\n        description: Known customer identifier when authenticated.\n      - name: event_type\n        description: Storefront interaction category.\n        tests: [not_null]\n      - name: event_at\n        description: Timestamp at which the event occurred.\n        tests: [not_null]\n\n",
+      "after": "version: 2\n\nmodels:\n  - name: stg_orders\n    description: Clean, non-cancelled orders with a computed net amount.\n    columns:\n      - name: order_id\n        description: Stable order primary key.\n        tests: [not_null, unique]\n      - name: customer_id\n        description: Customer who placed the order.\n        tests: [not_null]\n      - name: order_created_at\n        description: Timestamp at which the order was placed. Renamed by schema-drift-repair from `order_placed_at` to `order_created_at`.\n        tests: [not_null, unique]\n      - name: order_status\n        description: Current lifecycle status of the order.\n        tests: [not_null]\n      - name: gross_amount\n        description: Gross order value before discounts.\n        tests: [not_null]\n      - name: net_amount\n        description: Gross order value less any discount.\n        tests: [not_null]\n\n  - name: stg_customers\n    description: Typed customer accounts and marketing preferences.\n    columns:\n      - name: customer_id\n        description: Stable customer primary key.\n        tests: [not_null, unique]\n      - name: email\n        description: Customer email address classified as PII.\n        tests: [not_null]\n      - name: full_name\n        description: Customer full name classified as PII.\n        tests: [not_null]\n      - name: signup_date\n        description: Date the customer registered.\n        tests: [not_null]\n      - name: country_code\n        description: Two-letter customer country code.\n        tests: [not_null]\n      - name: marketing_opt_in\n        description: Whether the customer accepts marketing messages.\n        tests: [not_null]\n\n  - name: stg_order_items\n    description: Order lines enriched with their extended line total.\n    columns:\n      - name: order_item_id\n        description: Stable order-line primary key.\n        tests: [not_null, unique]\n      - name: order_id\n        description: Parent order identifier.\n        tests: [not_null]\n      - name: product_id\n        description: Purchased product identifier.\n        tests: [not_null]\n      - name: quantity\n        description: Number of product units purchased.\n        tests: [not_null]\n      - name: unit_price\n        description: Price per product unit at purchase time.\n        tests: [not_null]\n      - name: line_total\n        description: Quantity multiplied by unit price.\n        tests: [not_null]\n\n  - name: stg_products\n    description: Typed product catalog records.\n    columns:\n      - name: product_id\n        description: Stable product primary key.\n        tests: [not_null, unique]\n      - name: sku\n        description: Merchant stock-keeping unit.\n        tests: [not_null, unique]\n      - name: product_name\n        description: Customer-facing product name.\n        tests: [not_null]\n      - name: category\n        description: Merchandising category.\n        tests: [not_null]\n      - name: list_price\n        description: Current catalog list price.\n        tests: [not_null]\n\n  - name: stg_web_events\n    description: Storefront interaction events used by analytics.\n    columns:\n      - name: event_id\n        description: Stable event identifier.\n        tests: [not_null, unique]\n      - name: session_id\n        description: Browser session identifier.\n        tests: [not_null]\n      - name: customer_id\n        description: Known customer identifier when authenticated.\n      - name: event_type\n        description: Storefront interaction category.\n        tests: [not_null]\n      - name: event_at\n        description: Timestamp at which the event occurred.\n        tests: [not_null]\n\n",
+      "unified_diff": "--- a/demo-warehouse/models/staging/schema.yml\n+++ b/demo-warehouse/models/staging/schema.yml\n@@ -10,9 +10,9 @@\n       - name: customer_id\n         description: Customer who placed the order.\n         tests: [not_null]\n-      - name: order_placed_at\n-        description: Timestamp at which the order was placed.\n-        tests: [not_null]\n+      - name: order_created_at\n+        description: Timestamp at which the order was placed. Renamed by schema-drift-repair from `order_placed_at` to `order_created_at`.\n+        tests: [not_null, unique]\n       - name: order_status\n         description: Current lifecycle status of the order.\n         tests: [not_null]\n",
+      "kind": "dbt_schema_yml",
+      "references": [],
+      "valid": true,
+      "strategy": "Renamed the `stg_orders.order_placed_at` dbt metadata entry, carried its description forward with provenance, and added a built-in test."
+    }
+  ],
+  "pr": {
+    "mode": "dry-run",
+    "url": "file:///Users/yadneshsalvi/code/hackathons/datahub/datahub-repair-agent/examples/pr_bodies/rename-orders-order_placed_at.md",
+    "branch": "repair/rename-orders-order_placed_at",
+    "title": "Repair orders timestamp schema drift",
+    "number": null,
+    "files": [
+      "demo-warehouse/dags/shopflow_daily.py",
+      "demo-warehouse/models/marts/fct_orders.sql",
+      "demo-warehouse/models/staging/stg_orders.sql",
+      "demo-warehouse/models/staging/schema.yml"
+    ],
+    "ok": true,
+    "error": null
+  },
+  "writeback": [
+    {
+      "kind": "update_fine_grained_lineage",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Updated corrected field lineage for 2 patched dataset(s).",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Lineage",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "document_column",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Documented the repaired path on 3 dataset field(s).",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "tag_assets",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Tagged the source dataset and `order_created_at` as detected; tagged 2 repaired dataset(s).",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "raise_incident",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Raised OSS incident urn:li:incident:7ffbbc79-2f8c-4774-97d4-a6fedfe4f36b and moved it to FIXED.",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Incidents",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "attach_migration_doc",
+      "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+      "detail": "Attached the PR and migration guide as InstitutionalMemory.",
+      "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
+      "ok": true,
+      "error": null
+    },
+    {
+      "kind": "record_run",
+      "target_urn": "urn:li:dataProcessInstance:17af653a00f68abe57d3233d34ed23d0",
+      "detail": "Recorded deterministic process run `run-82f578edde6d436b84dc1dee1b248c74` with result SUCCESS.",
+      "datahub_url": "http://localhost:9002/dataProcessInstance/urn%3Ali%3AdataProcessInstance%3A17af653a00f68abe57d3233d34ed23d0",
+      "ok": true,
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "ts": "2026-07-31T20:32:50.670452Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Schema-drift repair started",
+      "detail": "Run run-82f578edde6d436b84dc1dee1b248c74 is scoped to `rename-orders-order_placed_at` in dry-run PR mode.",
+      "data": {}
+    },
+    {
+      "seq": 2,
+      "ts": "2026-07-31T20:32:50.670527Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Starting OpenAI agent with gpt-5.6-sol",
+      "detail": "DataHub reads will be performed through the attached stdio MCP server.",
+      "data": {}
+    },
+    {
+      "seq": 3,
+      "ts": "2026-07-31T20:32:55.975062Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Agent active",
+      "detail": "SchemaDriftRepairAgent is processing catalog evidence.",
+      "data": {}
+    },
+    {
+      "seq": 4,
+      "ts": "2026-07-31T20:33:00.657131Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: search",
+      "detail": "Reading catalog evidence through DataHub MCP `search`.",
+      "data": {
+        "tool": "search",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 5,
+      "ts": "2026-07-31T20:33:00.730938Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 6,
+      "ts": "2026-07-31T20:33:02.477995Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: list_schema_fields",
+      "detail": "Reading catalog evidence through DataHub MCP `list_schema_fields`.",
+      "data": {
+        "tool": "list_schema_fields",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 7,
+      "ts": "2026-07-31T20:33:02.557439Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 8,
+      "ts": "2026-07-31T20:33:04.968259Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage`.",
+      "data": {
+        "tool": "get_lineage",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 9,
+      "ts": "2026-07-31T20:33:05.119232Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 10,
+      "ts": "2026-07-31T20:33:08.403180Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 11,
+      "ts": "2026-07-31T20:33:08.424303Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 12,
+      "ts": "2026-07-31T20:33:08.428025Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 13,
+      "ts": "2026-07-31T20:33:08.432188Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 14,
+      "ts": "2026-07-31T20:33:08.546258Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_dataset_queries",
+      "detail": "Reading catalog evidence through DataHub MCP `get_dataset_queries`.",
+      "data": {
+        "tool": "get_dataset_queries",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 15,
+      "ts": "2026-07-31T20:33:08.860541Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 16,
+      "ts": "2026-07-31T20:33:08.860561Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 17,
+      "ts": "2026-07-31T20:33:08.860565Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 18,
+      "ts": "2026-07-31T20:33:08.860569Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 19,
+      "ts": "2026-07-31T20:33:08.860574Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 20,
+      "ts": "2026-07-31T20:33:13.220453Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 21,
+      "ts": "2026-07-31T20:33:13.257248Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 22,
+      "ts": "2026-07-31T20:33:13.274285Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 23,
+      "ts": "2026-07-31T20:33:13.285316Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "DataHub MCP tool call: get_lineage_paths_between",
+      "detail": "Reading catalog evidence through DataHub MCP `get_lineage_paths_between`.",
+      "data": {
+        "tool": "get_lineage_paths_between",
+        "source": "datahub_mcp"
+      }
+    },
+    {
+      "seq": 24,
+      "ts": "2026-07-31T20:33:13.642855Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 25,
+      "ts": "2026-07-31T20:33:13.642877Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 26,
+      "ts": "2026-07-31T20:33:13.642880Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 27,
+      "ts": "2026-07-31T20:33:13.642883Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 28,
+      "ts": "2026-07-31T20:33:16.294235Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Agent tool call: detect_drift",
+      "detail": "Executing the shared `detect_drift` repair stage.",
+      "data": {
+        "tool": "detect_drift",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 29,
+      "ts": "2026-07-31T20:33:16.314893Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Checking the live DataHub catalog",
+      "detail": "Verifying GMS, then comparing live schemas with the committed baseline snapshot.",
+      "data": {}
+    },
+    {
+      "seq": 30,
+      "ts": "2026-07-31T20:33:16.430270Z",
+      "phase": "detect",
+      "level": "info",
+      "title": "Detected rename drift",
+      "detail": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+      "data": {
+        "drift_id": "rename-orders-order_placed_at",
+        "confidence": 0.95
+      }
+    },
+    {
+      "seq": 31,
+      "ts": "2026-07-31T20:33:16.431540Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 32,
+      "ts": "2026-07-31T20:33:19.463215Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Agent tool call: analyze_impact",
+      "detail": "Executing the shared `analyze_impact` repair stage.",
+      "data": {
+        "tool": "analyze_impact",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 33,
+      "ts": "2026-07-31T20:33:19.695832Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Tracing the changed column",
+      "detail": "Following DataHub column lineage and checking exact AST references in mapped code.",
+      "data": {}
+    },
+    {
+      "seq": 34,
+      "ts": "2026-07-31T20:34:44.249499Z",
+      "phase": "impact",
+      "level": "info",
+      "title": "Blast radius classified",
+      "detail": "3 require patch, 2 are downstream but insulated, and 7 were correctly skipped with evidence.",
+      "data": {
+        "requires_patch": 3,
+        "downstream_unaffected": 2,
+        "skipped": 7,
+        "total_scanned": 12,
+        "max_hops_reached": 3
+      }
+    },
+    {
+      "seq": 35,
+      "ts": "2026-07-31T20:34:44.254194Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 36,
+      "ts": "2026-07-31T20:34:46.741429Z",
+      "phase": "codegen",
+      "level": "info",
+      "title": "Agent tool call: generate_patches",
+      "detail": "Executing the shared `generate_patches` repair stage.",
+      "data": {
+        "tool": "generate_patches",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 37,
+      "ts": "2026-07-31T20:34:46.760698Z",
+      "phase": "codegen",
+      "level": "info",
+      "title": "Generating deterministic patches",
+      "detail": "Only sqlglot AST transforms and round-trip-safe metadata editors may change code.",
+      "data": {}
+    },
+    {
+      "seq": 38,
+      "ts": "2026-07-31T20:34:46.793939Z",
+      "phase": "codegen",
+      "level": "info",
+      "title": "Generated 4 surgical file patches",
+      "detail": "The language model did not author or modify any Patch.after content.",
+      "data": {
+        "files": [
+          "demo-warehouse/dags/shopflow_daily.py",
+          "demo-warehouse/models/marts/fct_orders.sql",
+          "demo-warehouse/models/staging/stg_orders.sql",
+          "demo-warehouse/models/staging/schema.yml"
+        ]
+      }
+    },
+    {
+      "seq": 39,
+      "ts": "2026-07-31T20:34:46.795969Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 40,
+      "ts": "2026-07-31T20:34:48.505570Z",
+      "phase": "validate",
+      "level": "info",
+      "title": "Agent tool call: validate_patches",
+      "detail": "Executing the shared `validate_patches` repair stage.",
+      "data": {
+        "tool": "validate_patches",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 41,
+      "ts": "2026-07-31T20:34:48.518728Z",
+      "phase": "validate",
+      "level": "info",
+      "title": "Validating every generated reference",
+      "detail": "Each SQL column must resolve against live DataHub schemaMetadata or a projected repaired output.",
+      "data": {}
+    },
+    {
+      "seq": 42,
+      "ts": "2026-07-31T20:34:48.549978Z",
+      "phase": "validate",
+      "level": "info",
+      "title": "Validation passed — zero hallucinated columns",
+      "detail": "23/23 references resolved; the PR gate is open.",
+      "data": {
+        "resolved": 23,
+        "total": 23,
+        "valid": true
+      }
+    },
+    {
+      "seq": 43,
+      "ts": "2026-07-31T20:34:48.551212Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 44,
+      "ts": "2026-07-31T20:34:51.070393Z",
+      "phase": "pr",
+      "level": "info",
+      "title": "Agent tool call: open_pull_request",
+      "detail": "Executing the shared `open_pull_request` repair stage.",
+      "data": {
+        "tool": "open_pull_request",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 45,
+      "ts": "2026-07-31T20:34:51.090814Z",
+      "phase": "pr",
+      "level": "info",
+      "title": "Preparing the review package",
+      "detail": "Rendering lineage evidence, patch strategies, validation verdicts, and skip reasons.",
+      "data": {}
+    },
+    {
+      "seq": 46,
+      "ts": "2026-07-31T20:34:55.384322Z",
+      "phase": "pr",
+      "level": "info",
+      "title": "Review package ready",
+      "detail": "dry-run review: file:///Users/yadneshsalvi/code/hackathons/datahub/datahub-repair-agent/examples/pr_bodies/rename-orders-order_placed_at.md",
+      "data": {
+        "mode": "dry-run",
+        "url": "file:///Users/yadneshsalvi/code/hackathons/datahub/datahub-repair-agent/examples/pr_bodies/rename-orders-order_placed_at.md"
+      }
+    },
+    {
+      "seq": 47,
+      "ts": "2026-07-31T20:34:55.385186Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 48,
+      "ts": "2026-07-31T20:34:57.273583Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "Agent tool call: write_back_to_datahub",
+      "detail": "Executing the shared `write_back_to_datahub` repair stage.",
+      "data": {
+        "tool": "write_back_to_datahub",
+        "source": "repair_agent"
+      }
+    },
+    {
+      "seq": 49,
+      "ts": "2026-07-31T20:34:57.298409Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "Writing repair evidence back to DataHub",
+      "detail": "Applying corrected lineage, documentation, tags, an OSS incident, institutional memory, and a run record.",
+      "data": {}
+    },
+    {
+      "seq": 50,
+      "ts": "2026-07-31T20:35:11.421632Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: update_fine_grained_lineage",
+      "detail": "Updated corrected field lineage for 2 patched dataset(s).",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Lineage"
+      }
+    },
+    {
+      "seq": 51,
+      "ts": "2026-07-31T20:35:11.421687Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: document_column",
+      "detail": "Documented the repaired path on 3 dataset field(s).",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+      }
+    },
+    {
+      "seq": 52,
+      "ts": "2026-07-31T20:35:11.421691Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: tag_assets",
+      "detail": "Tagged the source dataset and `order_created_at` as detected; tagged 2 repaired dataset(s).",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+      }
+    },
+    {
+      "seq": 53,
+      "ts": "2026-07-31T20:35:11.421696Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: raise_incident",
+      "detail": "Raised OSS incident urn:li:incident:7ffbbc79-2f8c-4774-97d4-a6fedfe4f36b and moved it to FIXED.",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Incidents"
+      }
+    },
+    {
+      "seq": 54,
+      "ts": "2026-07-31T20:35:11.421703Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: attach_migration_doc",
+      "detail": "Attached the PR and migration guide as InstitutionalMemory.",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29"
+      }
+    },
+    {
+      "seq": 55,
+      "ts": "2026-07-31T20:35:11.421708Z",
+      "phase": "writeback",
+      "level": "info",
+      "title": "DataHub write-back: record_run",
+      "detail": "Recorded deterministic process run `run-82f578edde6d436b84dc1dee1b248c74` with result SUCCESS.",
+      "data": {
+        "ok": true,
+        "datahub_url": "http://localhost:9002/dataProcessInstance/urn%3Ali%3AdataProcessInstance%3A17af653a00f68abe57d3233d34ed23d0"
+      }
+    },
+    {
+      "seq": 56,
+      "ts": "2026-07-31T20:35:11.426688Z",
+      "phase": "impact",
+      "level": "debug",
+      "title": "Tool completed: tool",
+      "detail": "Structured output returned to SchemaDriftRepairAgent.",
+      "data": {}
+    },
+    {
+      "seq": 57,
+      "ts": "2026-07-31T20:35:16.283306Z",
+      "phase": "done",
+      "level": "info",
+      "title": "Repair run complete",
+      "detail": "Status succeeded; 4 patches, 6 DataHub write-back actions, degraded=False.",
+      "data": {
+        "status": "succeeded",
+        "degraded": false
+      }
+    }
+  ],
+  "started_at": "2026-07-31T20:32:50.669088Z",
+  "finished_at": "2026-07-31T20:35:16.283280Z"
+}

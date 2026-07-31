@@ -20,11 +20,14 @@ the metadata story reproducible without a Snowflake account.
 - An idempotent DataHub seed with a namespace-safe reset, live read-back verification, PII
   field tags, Airflow jobs, and a committed-style baseline schema snapshot.
 - Three source drift scenarios—rename, retype, and drop—with lossless baseline reversion.
-- Consistency tests proving SQL outputs, dbt YAML, and seeded lineage stay aligned.
-
-Later slices add the deterministic patch engine, validator, OpenAI Agents SDK reasoning,
-PR delivery, FastAPI service, and React control room. The foundation already models those
-contracts so later layers share one JSON-serializable vocabulary.
+- A shared detect → impact → generate → validate pipeline, with sqlglot AST edits and a
+  hard live-catalog reference gate.
+- An OpenAI Agents SDK agent whose DataHub reasoning reads go through MCP, with a complete
+  deterministic/Jinja fallback when the key, quota, or requested model is unavailable.
+- Safe-by-default dry-run PR delivery, optional isolated-worktree `gh` delivery, six OSS
+  DataHub write-backs, and a FastAPI/SSE backend on port 8002.
+- Consistency and integration tests proving SQL outputs, dbt YAML, seeded lineage, agent
+  tool schemas, PR payloads, write-backs, and SSE behavior stay aligned.
 
 ## Architecture
 
@@ -102,6 +105,31 @@ Other scenarios are `retype_gross_amount` and `drop_marketing_opt_in`. Simulatio
 re-emits the affected source `schemaMetadata`; it records the applied scenario but never
 changes the baseline at `demo-warehouse/.repair-agent/snapshot.json`.
 
+## Run a repair
+
+Dry-run PR delivery is the default, so this command never pushes a branch or opens a
+surprise pull request:
+
+```bash
+env -u VIRTUAL_ENV UV_CACHE_DIR=/private/tmp/uv-cache \
+  uv run repair-agent run rename-orders-order_placed_at
+```
+
+Pass `--no-llm` to exercise the same deterministic patches with Jinja prose. The command
+prints SHA-256 prefixes for every `Patch.after`; those hashes are identical with and
+without the LLM because model output is never allowed to alter generated code.
+
+Start the backend with:
+
+```bash
+env -u VIRTUAL_ENV UV_CACHE_DIR=/private/tmp/uv-cache \
+  uv run uvicorn repair_agent.api.app:app --port 8002
+```
+
+The API exposes catalog, scenario, drift, run, lineage-graph, and reset endpoints under
+`/api`, with a live SSE timeline at `/api/runs/{id}/events`. Completed runs are persisted
+under `.repair-agent/runs/` and reloaded after a backend restart.
+
 ## Development checks
 
 ```bash
@@ -118,4 +146,3 @@ The demo dbt dependencies are optional, so the core agent installation stays lea
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
-

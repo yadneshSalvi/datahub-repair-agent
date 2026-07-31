@@ -3,6 +3,14 @@
 Repair {{ drift.dataset_name }}: `{{ drift.old_column or "∅" }}` → `{{ drift.new_column or "∅" }}` ({{ drift.kind.value }}, {{ "%.2f"|format(drift.confidence) }} confidence).
 
 {{ drift.rationale }}
+{% if narrative_summary %}
+
+{{ narrative_summary }}
+{% endif %}
+{% if risk_note %}
+
+> **Risk note:** {{ risk_note }}
+{% endif %}
 
 ## Lineage evidence
 
@@ -22,6 +30,14 @@ graph LR
 {% for patch in patches %}
 | `{{ patch.file_path }}` | {{ patch.kind }} | {{ patch.strategy }} |
 {% endfor %}
+{% if reviewer_checklist %}
+
+### Reviewer checklist
+
+{% for item in reviewer_checklist %}
+- [ ] {{ item }}
+{% endfor %}
+{% endif %}
 
 ## Validation — 0 hallucinated columns · {{ resolved }}/{{ total_references }} references resolved
 
