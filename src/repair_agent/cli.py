@@ -40,7 +40,7 @@ def _events(io: DataHubIO) -> list[DriftEvent]:
     settings = get_settings()
     io.preflight()
     baseline = SchemaSnapshot.load()
-    live = SchemaSnapshot.capture(io, settings.namespace_prefix)
+    live = SchemaSnapshot.capture(io, settings.namespace_prefix, known_urns=baseline.dataset_urns())
     return detect_drift(baseline, live)
 
 

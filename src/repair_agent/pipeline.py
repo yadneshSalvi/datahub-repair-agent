@@ -63,7 +63,7 @@ def detect_stage(
     )
     datahub_io.preflight()
     baseline = SchemaSnapshot.load()
-    live = SchemaSnapshot.capture(datahub_io, settings.namespace_prefix)
+    live = SchemaSnapshot.capture(datahub_io, settings.namespace_prefix, known_urns=baseline.dataset_urns())
     events = detect_drift(baseline, live)
     try:
         run.drift = next(event for event in events if event.id == drift_id)

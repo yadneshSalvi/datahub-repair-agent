@@ -162,7 +162,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def read() -> list[dict[str, object]]:
             io.preflight()
             baseline = SchemaSnapshot.load()
-            live = SchemaSnapshot.capture(io, active_settings.namespace_prefix)
+            live = SchemaSnapshot.capture(io, active_settings.namespace_prefix, known_urns=baseline.dataset_urns())
             return [event.model_dump(mode="json") for event in detect_drift(baseline, live)]
 
         try:

@@ -68,7 +68,7 @@ def generate_examples(datahub_io: DataHubIO | None = None, settings: Settings | 
 
 def _detect_one(io: DataHubIO, settings: Settings, drift_id: str) -> DriftEvent:
     baseline = SchemaSnapshot.load()
-    live = SchemaSnapshot.capture(io, settings.namespace_prefix)
+    live = SchemaSnapshot.capture(io, settings.namespace_prefix, known_urns=baseline.dataset_urns())
     events = detect_drift(baseline, live)
     try:
         return next(event for event in events if event.id == drift_id)

@@ -34,3 +34,4 @@ demo-warehouse/logs/
 demo-warehouse/.repair-agent/applied_drift.json
 node_modules/
 dist/
+demo-warehouse/.repair-agent/reset_audit.json

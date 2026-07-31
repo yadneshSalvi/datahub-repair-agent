@@ -621,7 +621,19 @@ def build_pii_tag_metadata(settings: Settings) -> list[Any]:
 
 
 def reset_namespace(io: DataHubIO, settings: Settings) -> list[str]:
-    """Soft-delete only active dataset names beginning with the configured namespace."""
+    """Hard-delete only dataset names beginning with the configured namespace.
+
+    Deletion is HARD rather than soft on purpose. A soft delete leaves the entity's rows in
+    the graph index in a state that survives a subsequent re-emit: the dataset comes back,
+    its ``upstreamLineage`` aspect reads back correctly over GraphQL, but its degree-1
+    column-lineage edges never reappear in ``searchAcrossLineage``. The symptom is brutal to
+    debug — hop-2 and hop-3 downstreams are still returned, so the graph merely looks
+    *incomplete* rather than broken. A hard delete followed by the re-emit below rebuilds
+    the index cleanly and was verified to restore the missing edges immediately.
+
+    The blast radius is bounded twice over: candidates come from a namespace-filtered
+    listing, and every URN is re-checked textually at the destructive call site.
+    """
 
     candidates = io.list_namespace_datasets(settings.namespace_prefix, skip_cache=True)
     touched: list[str] = []
@@ -629,8 +641,8 @@ def reset_namespace(io: DataHubIO, settings: Settings) -> list[str]:
         # list_namespace_datasets parses the URN name and performs startswith; retain a
         # second textual guard at the destructive call site for defense in depth.
         if f",{settings.namespace_prefix}" not in urn:
-            raise RuntimeError(f"Refusing to soft-delete out-of-namespace entity: {urn}")
-        io.graph.soft_delete_entity(urn, run_id="datahub-repair-agent-seed-reset")
+            raise RuntimeError(f"Refusing to delete out-of-namespace entity: {urn}")
+        io.graph.delete_entity(urn=urn, hard=True)
         touched.append(urn)
     _write_reset_audit(settings, touched)
     return touched
@@ -642,7 +654,7 @@ def _write_reset_audit(settings: Settings, touched: list[str]) -> None:
     audit_path.write_text(
         json.dumps(
             {
-                "operation": "soft_delete",
+                "operation": "hard_delete",
                 "namespace_prefix": settings.namespace_prefix,
                 "touched_urns": touched,
             },
@@ -810,7 +822,7 @@ def main() -> int:
         elif args.reset:
             touched = reset_namespace(io, settings)
             CONSOLE.print(
-                f"[yellow]Reset:[/] soft-deleted {len(touched)} active dataset(s), all under {settings.namespace_prefix}"
+                f"[yellow]Reset:[/] hard-deleted {len(touched)} dataset(s), all under {settings.namespace_prefix}"
             )
 
         emitted = emit_seed(io, settings, dry_run=args.dry_run)

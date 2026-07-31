@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 
 from pydantic import RootModel
@@ -38,14 +38,46 @@ class SchemaSnapshot(RootModel[dict[str, dict[str, ColumnSpec]]]):
 
         return self.root.get(dataset_urn, default)
 
-    @classmethod
-    def capture(cls, datahub_io: DataHubIO, prefix: str) -> SchemaSnapshot:
-        """Capture all live schemas in ``prefix`` from DataHub."""
+    def dataset_urns(self) -> list[str]:
+        """Return every dataset URN in this snapshot.
 
+        Passed to :meth:`capture` as ``known_urns`` so a live capture never loses a dataset
+        just because the DataHub search index has not caught up.
+        """
+
+        return list(self.root)
+
+    @classmethod
+    def capture(
+        cls,
+        datahub_io: DataHubIO,
+        prefix: str,
+        *,
+        known_urns: Iterable[str] = (),
+    ) -> SchemaSnapshot:
+        """Capture all live schemas in ``prefix`` from DataHub.
+
+        Dataset discovery goes through DataHub search, which is eventually consistent —
+        immediately after a re-seed it can omit datasets that certainly exist. Any URN the
+        caller already knows about (in practice, every dataset in the committed baseline)
+        is therefore fetched directly rather than trusted to the search index. Without this
+        a freshly seeded catalog silently reports datasets as deleted, and drift on them is
+        never detected.
+        """
+
+        discovered = list(datahub_io.list_namespace_datasets(prefix, skip_cache=True))
+        candidates = dict.fromkeys([*discovered, *known_urns])
         datasets: dict[str, dict[str, ColumnSpec]] = {}
-        for urn in datahub_io.list_namespace_datasets(prefix, skip_cache=True):
+        for urn in candidates:
             schema = datahub_io.get_schema(urn, skip_cache=True)
+            if not schema.columns:
+                # Genuinely absent (or hard-deleted): leave it out so drift detection can
+                # see the removal rather than inventing an empty schema.
+                continue
             datasets[urn] = {column.name: column for column in schema.columns}
+        recovered = len(datasets) - len([u for u in discovered if u in datasets])
+        if recovered > 0:
+            LOGGER.info("Recovered %d dataset(s) missing from the DataHub search index", recovered)
         LOGGER.info("Captured %d DataHub schemas under %s", len(datasets), prefix)
         return cls(datasets)
 
@@ -74,10 +106,10 @@ def _snapshot_path(path: Path | str | None) -> Path:
     return get_settings().repo_root / "demo-warehouse" / ".repair-agent" / "snapshot.json"
 
 
-def capture(datahub_io: DataHubIO, prefix: str) -> SchemaSnapshot:
+def capture(datahub_io: DataHubIO, prefix: str, *, known_urns: Iterable[str] = ()) -> SchemaSnapshot:
     """Capture live schemas from DataHub."""
 
-    return SchemaSnapshot.capture(datahub_io, prefix)
+    return SchemaSnapshot.capture(datahub_io, prefix, known_urns=known_urns)
 
 
 def load(path: Path | str | None = None) -> SchemaSnapshot:
