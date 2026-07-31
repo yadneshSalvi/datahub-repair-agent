@@ -2,8 +2,8 @@
 
 ```mermaid
 graph LR
-    n0a["shop_prod.raw.customers.marketing_opt_in"] -->|"IDENTITY"| n0b["stg_customers.marketing_opt_in"]
-    n1a["stg_customers.marketing_opt_in"] -->|"IDENTITY"| n1b["dim_customers.is_marketable"]
+    n0["shop_prod.raw.customers.marketing_opt_in"] -->|"IDENTITY"| n1["stg_customers.marketing_opt_in"]
+    n1["stg_customers.marketing_opt_in"] -->|"IDENTITY"| n2["dim_customers.is_marketable"]
 ```
 
 ## Captured DataHub queries

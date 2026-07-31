@@ -7,6 +7,7 @@ from datetime import datetime
 from jinja2 import Environment, PackageLoader, StrictUndefined, select_autoescape
 
 from repair_agent.models import ImpactBucket, ImpactReport, Patch
+from repair_agent.pr.mermaid import mermaid_edges
 
 
 def render_pr_body(
@@ -41,24 +42,6 @@ def render_pr_body(
         for node in impact.graph.nodes
         if node.datahub_url and (node.urn == impact.drift.dataset_urn or node.bucket is ImpactBucket.REQUIRES_PATCH)
     ]
-    # Short, stable node ids keep the rendered diagram narrow and the markdown readable;
-    # URN-derived ids are ~90 characters each and blow the diagram off the page.
-    mermaid_ids: dict[str, str] = {}
-    for edge in impact.graph.edges:
-        for urn in (edge.source_urn, edge.target_urn):
-            mermaid_ids.setdefault(urn, f"n{len(mermaid_ids)}")
-    mermaid_edges = [
-        {
-            "source_id": mermaid_ids[edge.source_urn],
-            "source_label": _node_label(impact, edge.source_urn),
-            "target_id": mermaid_ids[edge.target_urn],
-            "target_label": _node_label(impact, edge.target_urn),
-            "operation": edge.transform_operation or "LINEAGE",
-            "source_column": ", ".join(edge.source_columns),
-            "target_column": ", ".join(edge.target_columns),
-        }
-        for edge in impact.graph.edges
-    ]
     return (
         template.render(
             drift=impact.drift,
@@ -70,7 +53,7 @@ def render_pr_body(
             skipped=skipped,
             captured=captured,
             links=links,
-            mermaid_edges=mermaid_edges,
+            mermaid_edges=mermaid_edges(impact),
             run_id=run_id,
             datahub_instance=datahub_instance,
             timestamp=timestamp.isoformat(),
@@ -80,10 +63,3 @@ def render_pr_body(
         ).rstrip()
         + "\n"
     )
-
-
-def _node_label(impact: ImpactReport, urn: str) -> str:
-    for node in impact.graph.nodes:
-        if node.urn == urn:
-            return node.name
-    return urn

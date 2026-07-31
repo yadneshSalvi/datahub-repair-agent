@@ -2,43 +2,49 @@
   {
     "kind": "update_fine_grained_lineage",
     "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Planned corrected field lineage for patched models.",
-    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
-    "status": "pending_slice_c"
+    "detail": "Updated corrected field lineage for 2 patched dataset(s).",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Lineage",
+    "ok": true,
+    "error": null
   },
   {
     "kind": "document_column",
     "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Planned provenance documentation on renamed or migrated columns.",
+    "detail": "Documented the repaired path on 3 dataset field(s).",
     "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
-    "status": "pending_slice_c"
+    "ok": true,
+    "error": null
   },
   {
     "kind": "tag_assets",
     "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Planned schema-drift-detected and schema-drift-repaired tags.",
+    "detail": "Tagged the source dataset and `order_created_at` as detected; tagged 2 repaired dataset(s).",
     "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
-    "status": "pending_slice_c"
+    "ok": true,
+    "error": null
   },
   {
     "kind": "raise_incident",
     "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Planned OSS incident lifecycle from TRIAGE to FIXED.",
-    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
-    "status": "pending_slice_c"
+    "detail": "Reused OSS incident urn:li:incident:07d34451-f629-490a-9d6b-1d7bee9af5ac and moved it to FIXED.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Incidents",
+    "ok": true,
+    "error": null
   },
   {
     "kind": "attach_migration_doc",
     "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Planned InstitutionalMemory link to this migration document.",
+    "detail": "Attached the PR and migration guide as InstitutionalMemory.",
     "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
-    "status": "pending_slice_c"
+    "ok": true,
+    "error": null
   },
   {
     "kind": "record_run",
-    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Planned DataProcessInstance audit record.",
-    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29",
-    "status": "pending_slice_c"
+    "target_urn": "urn:li:dataProcessInstance:55829cbde3c533320c5b9b50ecdd1884",
+    "detail": "Recorded deterministic process run `example-rename_order_placed_at` with result SUCCESS.",
+    "datahub_url": "http://localhost:9002/dataProcessInstance/urn%3Ali%3AdataProcessInstance%3A55829cbde3c533320c5b9b50ecdd1884",
+    "ok": true,
+    "error": null
   }
 ]

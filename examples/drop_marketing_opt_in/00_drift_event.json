@@ -9,5 +9,5 @@
   "new_type": null,
   "confidence": 1.0,
   "rationale": "`marketing_opt_in` disappeared from the live schema and no added column met the 0.55 rename-similarity threshold — detected as a drop.",
-  "detected_at": "2026-07-31T22:09:32.136375Z"
+  "detected_at": "2026-07-31T23:11:22.278409Z"
 }

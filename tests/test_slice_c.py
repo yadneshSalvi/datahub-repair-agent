@@ -93,6 +93,7 @@ def test_degraded_path_produces_a_complete_run(monkeypatch) -> None:  # type: ig
         )
     )
     assert result.status == "succeeded"
+    assert result.mode == "deterministic"
     assert result.degraded is True
     assert result.drift is not None and result.impact is not None
     assert result.patches and all(patch.valid for patch in result.patches)
@@ -127,6 +128,8 @@ def test_llm_and_no_llm_runs_have_byte_identical_patch_content(monkeypatch) -> N
     assert [(patch.file_path, patch.after) for patch in llm.patches] == [
         (patch.file_path, patch.after) for patch in no_llm.patches
     ]
+    assert no_llm.mode == "deterministic"
+    assert no_llm.degraded is False
 
 
 def test_shared_pipeline_returns_a_complete_validated_run() -> None:
@@ -153,6 +156,7 @@ def test_dry_run_provider_writes_complete_payload(tmp_path: Path) -> None:
     result = DryRunPRProvider(tmp_path).open_pr(request)
     payload = json.loads((tmp_path / f"{DRIFT_ID}.payload.json").read_text(encoding="utf-8"))
     assert result.ok and result.mode == "dry-run"
+    assert not result.url.startswith("file:")
     assert (tmp_path / f"{DRIFT_ID}.md").read_text(encoding="utf-8") == request.body_markdown
     assert payload == {
         "branch": request.branch,
@@ -236,6 +240,18 @@ def test_fastapi_run_and_sse_stream_complete(monkeypatch, tmp_path: Path) -> Non
         return run
 
     monkeypatch.setattr(api_module, "run_repair", fake_run_repair)
+    monkeypatch.setattr(
+        api_module,
+        "_live_drift_events",
+        lambda _io, _settings: [
+            declare_drift(
+                kind="RENAME",
+                dataset_urn=dataset_urn("raw.orders"),
+                old_column="order_placed_at",
+                new_column="order_created_at",
+            )
+        ],
+    )
     settings = Settings(
         _env_file=None,
         repo_root=tmp_path,
@@ -246,6 +262,12 @@ def test_fastapi_run_and_sse_stream_complete(monkeypatch, tmp_path: Path) -> Non
     with TestClient(application) as client:
         assert client.get("/api/health").status_code == 200
         assert len(client.get("/api/scenarios").json()) == 3
+        unknown = client.post(
+            "/api/runs",
+            json={"drift_id": "<img src=x onerror=alert(1)>", "pr_mode": "dry-run", "use_llm": False},
+        )
+        assert unknown.status_code == 404
+        assert DRIFT_ID in unknown.json()["detail"]
         started = client.post(
             "/api/runs",
             json={"drift_id": DRIFT_ID, "pr_mode": "dry-run", "use_llm": False},

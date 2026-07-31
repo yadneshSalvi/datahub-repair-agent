@@ -71,7 +71,7 @@ def detect_stage(
         available = ", ".join(event.id for event in events) or "none"
         raise ValueError(
             f"Drift `{drift_id}` is not active. Active drift IDs: {available}. "
-            "Apply one with `repair-agent simulate <scenario>` first."
+            "Apply a drift scenario from the Control Room first."
         ) from exc
     emit_run_event(
         run,

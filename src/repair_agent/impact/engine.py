@@ -8,7 +8,6 @@ from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
 from datahub.metadata.urns import DatasetUrn
 from ruamel.yaml import YAML
@@ -17,6 +16,7 @@ from repair_agent.codegen.airflow_ops import extract_sql_constants
 from repair_agent.codegen.sql_ops import ColumnRef, find_column_references
 from repair_agent.config import Settings, get_settings
 from repair_agent.datahub_io.client import DataHubIO
+from repair_agent.datahub_io.links import datahub_entity_url
 from repair_agent.models import (
     ColumnImpactHit,
     DriftEvent,
@@ -383,7 +383,7 @@ class ImpactEngine:
             kind="dataset",
             columns=[drift.old_column],
             hops=0,
-            datahub_url=self._datahub_url(drift.dataset_urn),
+            datahub_url=datahub_entity_url(self.settings.datahub_frontend_url, drift.dataset_urn),
         )
         graph_nodes = [source_node] + [
             LineageNode(
@@ -393,7 +393,7 @@ class ImpactEngine:
                 bucket=asset.bucket,
                 columns=asset.matched_columns,
                 hops=asset.hops,
-                datahub_url=self._datahub_url(asset.urn),
+                datahub_url=datahub_entity_url(self.settings.datahub_frontend_url, asset.urn),
             )
             for asset in assets
         ]
@@ -414,9 +414,6 @@ class ImpactEngine:
         except Exception as exc:  # pragma: no cover - depends on optional usage aspects
             LOGGER.warning("Could not read captured queries for %s: %s", urn, exc)
             return []
-
-    def _datahub_url(self, urn: str) -> str:
-        return f"{self.settings.datahub_frontend_url.rstrip('/')}/dataset/{quote(urn, safe='')}"
 
     def _addition_report(self, drift: DriftEvent) -> ImpactReport:
         stats = {"requires_patch": 0, "downstream_unaffected": 0, "skipped": 0, "total_scanned": 0, "max_hops_reached": 0}

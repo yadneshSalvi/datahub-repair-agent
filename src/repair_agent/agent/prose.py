@@ -196,7 +196,7 @@ def fallback_pr_narrative(run: RepairRun) -> PRNarrative:
         summary=_render(SUMMARY_FALLBACK, values),
         risk_note=_render(RISK_FALLBACK, values),
         reviewer_checklist=[
-            "Confirm the upstream rename and rollout order with the source owner.",
+            "Confirm the upstream schema change and rollout order with the source owner.",
             "Review every downstream-unaffected and correctly-skipped reason against the lineage graph.",
             "Run the dbt tests and dependent Airflow task in staging before production deployment.",
             "Verify the DataHub incident, field documentation, tags, and corrected column lineage after merge.",

@@ -27,7 +27,10 @@ class GhCliPRProvider:
         on_degradation: Callable[[str], None] | None = None,
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
-        self.fallback = fallback or DryRunPRProvider(self.repo_root / "examples" / "pr_bodies")
+        self.fallback = fallback or DryRunPRProvider(
+            self.repo_root / ".repair-agent" / "pr_bodies",
+            repo_root=self.repo_root,
+        )
         self.on_degradation = on_degradation
 
     def open_pr(self, request: PRRequest) -> PullRequestResult:

@@ -127,7 +127,7 @@ def impact_command(
 @app.command("run")
 def run_command(
     drift_id: Annotated[str, typer.Argument(help="Active DriftEvent ID from `repair-agent detect`.")],
-    pr_mode: Annotated[str, typer.Option(help="Reserved for Slice C: dry-run or live.")] = "dry-run",
+    pr_mode: Annotated[str, typer.Option(help="Pull request provider: dry-run or live.")] = "dry-run",
     no_llm: Annotated[bool, typer.Option("--no-llm", help="Use the deterministic pipeline only.")] = False,
 ) -> None:
     """Run the complete agent, PR, and DataHub write-back workflow."""
@@ -163,7 +163,7 @@ def run_command(
         f"{cte} locally derived. 0 hallucinated columns."
     )
     CONSOLE.print(
-        f"[bold]Run summary:[/] status={run.status} · degraded={run.degraded} · "
+        f"[bold]Run summary:[/] status={run.status} · mode={run.mode} · degraded={run.degraded} · "
         f"patches={len(run.patches)} · writebacks={len(run.writeback)}"
     )
     for degradation in run.degradations:

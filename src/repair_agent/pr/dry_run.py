@@ -12,8 +12,9 @@ from repair_agent.models import PRRequest, PullRequestResult
 class DryRunPRProvider:
     """Persist the complete PR body and machine-readable request without git writes."""
 
-    def __init__(self, output_dir: Path | str) -> None:
+    def __init__(self, output_dir: Path | str, *, repo_root: Path | str | None = None) -> None:
         self.output_dir = Path(output_dir)
+        self.repo_root = Path(repo_root).resolve() if repo_root is not None else None
 
     def open_pr(self, request: PRRequest) -> PullRequestResult:
         """Write the exact body and payload used by the live provider."""
@@ -33,14 +34,21 @@ class DryRunPRProvider:
         payload_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         return PullRequestResult(
             mode="dry-run",
-            url=body_path.resolve().as_uri(),
+            url=self._artifact_reference(body_path),
             branch=request.branch,
             title=request.title,
             files=payload["files"],
         )
 
+    def _artifact_reference(self, body_path: Path) -> str:
+        if self.repo_root is not None:
+            try:
+                return body_path.resolve().relative_to(self.repo_root).as_posix()
+            except ValueError:
+                pass
+        return body_path.name
+
 
 def _artifact_id(branch: str) -> str:
     leaf = branch.removeprefix("repair/").strip("/") or "repair"
     return re.sub(r"[^a-zA-Z0-9_.-]+", "-", leaf)
-

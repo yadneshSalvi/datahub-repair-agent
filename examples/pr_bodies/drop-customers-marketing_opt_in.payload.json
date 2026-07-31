@@ -1,0 +1,12 @@
+{
+  "branch": "repair/drop-customers-marketing_opt_in",
+  "base": "main",
+  "title": "Repair shop_prod.raw.customers: marketing_opt_in \u2192 \u2205",
+  "commit_message": "Repair schema drift drop-customers-marketing_opt_in",
+  "files": [
+    "demo-warehouse/models/marts/dim_customers.sql",
+    "demo-warehouse/models/marts/schema.yml",
+    "demo-warehouse/models/staging/stg_customers.sql",
+    "demo-warehouse/models/staging/schema.yml"
+  ]
+}

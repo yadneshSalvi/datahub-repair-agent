@@ -76,7 +76,18 @@ function RunTimeline({
   failedStage: string | null
 }) {
   const [expanded, setExpanded] = useState<Set<RunPhase>>(new Set(['detect', 'impact']))
-  const visibleEvents = events.filter((event) => event.level !== 'debug' || event.data.tool)
+  const visibleEvents = events
+    .filter((event) => event.level !== 'debug' || event.data.tool)
+    .filter((event, index, filtered) => {
+      if (index === 0) return true
+      const previous = filtered[index - 1]
+      return event.phase !== previous.phase
+        || event.level !== previous.level
+        || event.title !== previous.title
+        || event.detail !== previous.detail
+        || event.data.tool !== previous.data.tool
+        || event.data.source !== previous.data.source
+    })
   const lastPhase = visibleEvents.at(-1)?.phase
   const activeIndex = lastPhase ? phaseDefinitions.findIndex((phase) => phase.id === lastPhase) : -1
   const startedAt = events[0] ? new Date(events[0].ts).getTime() : Date.now()
@@ -220,7 +231,7 @@ export function ControlRoom() {
     setError(null)
     try {
       const result = await api.startRun({ drift_id: activeDrift.id, pr_mode: 'dry-run', use_llm: useLlm })
-      startRunState(result.run_id)
+      startRunState(result.run_id, useLlm ? 'agent' : 'deterministic')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The repair run could not be started.')
     } finally {

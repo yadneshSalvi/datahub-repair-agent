@@ -247,6 +247,7 @@ class RepairRun(BaseModel):
     #: Phases that actually produced their output, so a UI can tick only real progress
     #: instead of assuming every step succeeded.
     completed_stages: list[str] = Field(default_factory=list)
+    mode: Literal["agent", "deterministic"] = "agent"
     degraded: bool = False
     degradations: list[str] = Field(default_factory=list)
     drift: DriftEvent | None = None

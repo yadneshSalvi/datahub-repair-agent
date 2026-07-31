@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
@@ -9,19 +10,14 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
 
 from ruamel.yaml import YAML
 
-from repair_agent.codegen.generator import generate_patches
+from repair_agent.agent.runner import run_repair
 from repair_agent.config import Settings, get_settings
 from repair_agent.datahub_io.client import DataHubIO
-from repair_agent.drift.detect import detect_drift
-from repair_agent.drift.snapshot import SchemaSnapshot
-from repair_agent.impact.engine import ImpactEngine
-from repair_agent.models import DriftEvent, ImpactReport, Patch
-from repair_agent.pr.render import render_pr_body
-from repair_agent.validate.validator import validate_patches
+from repair_agent.models import DriftEvent, ImpactReport, Patch, RepairRun
+from repair_agent.pr.mermaid import mermaid_edges
 
 SCENARIOS = ("rename_order_placed_at", "retype_gross_amount", "drop_marketing_opt_in")
 SCENARIO_IDS = {
@@ -39,48 +35,67 @@ def generate_examples(datahub_io: DataHubIO | None = None, settings: Settings | 
     io.preflight()
     examples_root = active_settings.repo_root / "examples"
     examples_root.mkdir(parents=True, exist_ok=True)
+    build_root = active_settings.repo_root / ".repair-agent" / "examples-build"
+    if build_root.exists():
+        shutil.rmtree(build_root)
+    build_root.mkdir(parents=True)
     applied_path = active_settings.repo_root / "demo-warehouse" / ".repair-agent" / "applied_drift.json"
     initial_scenario = _applied_scenario(applied_path)
     current_scenario: str | None = initial_scenario
-    impact_engine = ImpactEngine(io, active_settings)
     if current_scenario:
         _simulate(active_settings, revert=True)
         current_scenario = None
+    _seed(active_settings)
     try:
         for scenario in SCENARIOS:
             _simulate(active_settings, scenario=scenario)
             current_scenario = scenario
-            drift = _detect_one(io, active_settings, SCENARIO_IDS[scenario])
-            impact = impact_engine.analyze(drift)
-            patches = generate_patches(impact, active_settings)
-            validate_patches(patches, io, drift, settings=active_settings)
-            _write_scenario(examples_root / scenario, scenario, drift, impact, patches, active_settings)
+            run = asyncio.run(
+                run_repair(
+                    run_id=f"example-{scenario}",
+                    drift_id=SCENARIO_IDS[scenario],
+                    use_llm=False,
+                    pr_mode="dry-run",
+                    settings=active_settings,
+                    datahub_io=io,
+                )
+            )
+            _require_successful_example(run)
+            _write_scenario(build_root / scenario, run, active_settings)
+            _copy_runtime_artifacts(build_root, run, active_settings)
             _simulate(active_settings, revert=True)
             current_scenario = None
+            _seed(active_settings)
     finally:
         if current_scenario and applied_path.exists():
             _simulate(active_settings, revert=True)
+            _seed(active_settings)
         if initial_scenario:
             _simulate(active_settings, scenario=initial_scenario)
-    _write_readme(examples_root)
+    _write_readme(build_root)
+    _publish_examples(build_root, examples_root)
     return examples_root
 
 
-def _detect_one(io: DataHubIO, settings: Settings, drift_id: str) -> DriftEvent:
-    baseline = SchemaSnapshot.load()
-    live = SchemaSnapshot.capture(io, settings.namespace_prefix, known_urns=baseline.dataset_urns())
-    events = detect_drift(baseline, live)
-    try:
-        return next(event for event in events if event.id == drift_id)
-    except StopIteration as exc:
+def _require_successful_example(run: RepairRun) -> None:
+    failures = [action.kind for action in run.writeback if not action.ok]
+    if run.status != "succeeded" or run.degraded or failures:
         raise RuntimeError(
-            f"Scenario did not produce expected drift {drift_id}; detected {[event.id for event in events]}."
-        ) from exc
+            f"Example run {run.id} was not a clean success: status={run.status}, "
+            f"degraded={run.degraded}, failed_writebacks={failures}, error={run.error}."
+        )
 
 
 def _simulate(settings: Settings, scenario: str | None = None, *, revert: bool = False) -> None:
     command = [sys.executable, str(settings.repo_root / "scripts" / "simulate_drift.py")]
     command.extend(["--revert"] if revert else [str(scenario)])
+    environment = os.environ.copy()
+    environment["DATAHUB_GMS_URL"] = settings.datahub_gms_url
+    subprocess.run(command, cwd=settings.repo_root, env=environment, check=True, capture_output=True, text=True)
+
+
+def _seed(settings: Settings) -> None:
+    command = [sys.executable, str(settings.repo_root / "scripts" / "seed_datahub.py")]
     environment = os.environ.copy()
     environment["DATAHUB_GMS_URL"] = settings.datahub_gms_url
     subprocess.run(command, cwd=settings.repo_root, env=environment, check=True, capture_output=True, text=True)
@@ -96,14 +111,14 @@ def _applied_scenario(path: Path) -> str | None:
 
 def _write_scenario(
     directory: Path,
-    scenario: str,
-    drift: DriftEvent,
-    impact: ImpactReport,
-    patches: list[Patch],
+    run: RepairRun,
     settings: Settings,
 ) -> None:
-    if directory.exists():
-        shutil.rmtree(directory)
+    drift = run.drift
+    impact = run.impact
+    if drift is None or impact is None or run.pr is None:
+        raise RuntimeError(f"Example run {run.id} is missing drift, impact, or PR artifacts.")
+    patches = run.patches
     before_dir = directory / "before"
     after_dir = directory / "after"
     before_dir.mkdir(parents=True)
@@ -121,21 +136,42 @@ def _write_scenario(
     directory.joinpath("03_patches.diff").write_text(combined_diff, encoding="utf-8")
     directory.joinpath("04_validation_report.md").write_text(_validation_markdown(patches), encoding="utf-8")
     directory.joinpath("05_generated_tests.yml").write_text(_generated_tests(patches, drift), encoding="utf-8")
-    directory.joinpath("06_pull_request.md").write_text(
-        render_pr_body(
-            impact,
-            patches,
-            run_id=f"example-{scenario}",
-            datahub_instance=settings.datahub_gms_url,
-            timestamp=drift.detected_at,
-        ),
-        encoding="utf-8",
-    )
+    pr_body = settings.repo_root / run.pr.url
+    directory.joinpath("06_pull_request.md").write_text(pr_body.read_text(encoding="utf-8"), encoding="utf-8")
     directory.joinpath("07_writeback_actions.json").write_text(
-        json.dumps(_pending_writebacks(impact, settings), indent=2) + "\n",
+        json.dumps([action.model_dump(mode="json") for action in run.writeback], indent=2) + "\n",
         encoding="utf-8",
     )
-    directory.joinpath("08_migration_doc.md").write_text(_migration_doc(impact, patches), encoding="utf-8")
+    migration_path = settings.repo_root / ".repair-agent" / "migration_docs" / f"{drift.id}.md"
+    directory.joinpath("08_migration_doc.md").write_text(
+        migration_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+
+def _copy_runtime_artifacts(build_root: Path, run: RepairRun, settings: Settings) -> None:
+    if run.drift is None or run.pr is None:
+        raise RuntimeError(f"Example run {run.id} has no review artifacts to copy.")
+    pr_source = settings.repo_root / run.pr.url
+    payload_source = pr_source.with_suffix(".payload.json")
+    pr_target = build_root / "pr_bodies"
+    migration_target = build_root / "migration_docs"
+    pr_target.mkdir(exist_ok=True)
+    migration_target.mkdir(exist_ok=True)
+    shutil.copy2(pr_source, pr_target / pr_source.name)
+    shutil.copy2(payload_source, pr_target / payload_source.name)
+    migration_source = settings.repo_root / ".repair-agent" / "migration_docs" / f"{run.drift.id}.md"
+    shutil.copy2(migration_source, migration_target / migration_source.name)
+
+
+def _publish_examples(build_root: Path, examples_root: Path) -> None:
+    for name in (*SCENARIOS, "pr_bodies", "migration_docs"):
+        target = examples_root / name
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.move(str(build_root / name), target)
+    shutil.move(str(build_root / "README.md"), examples_root / "README.md")
+    build_root.rmdir()
 
 
 def _artifact_names(patches: list[Patch]) -> dict[str, str]:
@@ -166,13 +202,12 @@ def _impact_markdown(impact: ImpactReport) -> str:
 
 def _lineage_markdown(impact: ImpactReport) -> str:
     lines = ["# Column-lineage evidence", "", "```mermaid", "graph LR"]
-    for index, edge in enumerate(impact.graph.edges):
-        source = _node_name(impact, edge.source_urn)
-        target = _node_name(impact, edge.target_urn)
-        source_column = ", ".join(edge.source_columns)
-        target_column = ", ".join(edge.target_columns)
-        operation = edge.transform_operation or "LINEAGE"
-        lines.append(f'    n{index}a["{source}.{source_column}"] -->|"{operation}"| n{index}b["{target}.{target_column}"]')
+    for edge in mermaid_edges(impact):
+        lines.append(
+            f'    {edge["source_id"]}["{edge["source_label"]}.{edge["source_column"]}"] '
+            f'-->|"{edge["operation"]}"| '
+            f'{edge["target_id"]}["{edge["target_label"]}.{edge["target_column"]}"]'
+        )
     lines.extend(["```", "", "## Captured DataHub queries", ""])
     queries = [(asset.name, query) for asset in impact.assets for query in asset.captured_queries]
     if not queries:
@@ -242,50 +277,16 @@ def _generated_tests(patches: list[Patch], drift: DriftEvent) -> str:
     return stream.getvalue()
 
 
-def _pending_writebacks(impact: ImpactReport, settings: Settings) -> list[dict[str, str]]:
-    source_url = f"{settings.datahub_frontend_url.rstrip('/')}/dataset/{quote(impact.drift.dataset_urn, safe='')}"
-    return [
-        {
-            "kind": kind,
-            "target_urn": impact.drift.dataset_urn,
-            "detail": detail,
-            "datahub_url": source_url,
-            "status": "pending_slice_c",
-        }
-        for kind, detail in (
-            ("update_fine_grained_lineage", "Planned corrected field lineage for patched models."),
-            ("document_column", "Planned provenance documentation on renamed or migrated columns."),
-            ("tag_assets", "Planned schema-drift-detected and schema-drift-repaired tags."),
-            ("raise_incident", "Planned OSS incident lifecycle from TRIAGE to FIXED."),
-            ("attach_migration_doc", "Planned InstitutionalMemory link to this migration document."),
-            ("record_run", "Planned DataProcessInstance audit record."),
-        )
-    ]
-
-
-def _migration_doc(impact: ImpactReport, patches: list[Patch]) -> str:
-    return (
-        f"# Migration: {impact.drift.id}\n\n"
-        f"{impact.drift.rationale}\n\n"
-        f"The deterministic engine changed {len(patches)} file artifact(s). "
-        f"{impact.stats['downstream_unaffected']} downstream model(s) remain insulated by aliases, and "
-        f"{impact.stats['skipped']} code-bearing asset(s) were correctly skipped using DataHub lineage evidence.\n\n"
-        "Every generated SQL reference passed the validator hard gate before this artifact was emitted.\n"
-    )
-
-
-def _node_name(impact: ImpactReport, urn: str) -> str:
-    return next((node.name for node in impact.graph.nodes if node.urn == urn), urn)
-
-
 def _write_readme(root: Path) -> None:
     root.joinpath("README.md").write_text(
         """# Engine-generated repair examples
 
 These artifacts are regenerated by `repair-agent examples`. For each drift scenario the
-command applies the source-schema change to DataHub, detects it against the committed
-snapshot, computes the three-bucket impact report from column lineage, generates surgical
-patches, validates every SQL reference, writes these files, and reverts the scenario.
+command applies the source-schema change to DataHub and executes a complete deterministic-mode
+repair run. It computes the three-bucket impact report from live column lineage, generates and
+validates surgical patches, performs all six DataHub write-backs, writes these files, and
+reverts the scenario. Deterministic mode is a first-class execution mode, so these are clean,
+successful runs rather than fallback output.
 
 - `00_drift_event.json` is the normalized detected event and inference evidence.
 - `01_impact_report.md` records every requires-patch, downstream-unaffected, and skipped decision with its reason.
@@ -295,8 +296,8 @@ patches, validates every SQL reference, writes these files, and reverts the scen
 - `04_validation_report.md` is the validator hard-gate output behind the zero-hallucinated-columns claim.
 - `05_generated_tests.yml` isolates tests added by the repair.
 - `06_pull_request.md` is rendered from the reusable deterministic PR template.
-- `07_writeback_actions.json` lists the six Slice C actions as explicitly pending; this slice does not fake external writes.
-- `08_migration_doc.md` is the deterministic degraded-mode migration note.
+- `07_writeback_actions.json` records the six completed DataHub actions and their live deep links.
+- `08_migration_doc.md` is the generated deterministic-mode migration and rollback note.
 """,
         encoding="utf-8",
     )

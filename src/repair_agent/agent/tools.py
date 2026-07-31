@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from repair_agent.agent.prose import generate_column_doc, generate_migration_doc, generate_pr_narrative
 from repair_agent.config import Settings
 from repair_agent.datahub_io.client import DataHubIO
+from repair_agent.datahub_io.links import datahub_entity_url
 from repair_agent.datahub_io.writeback import DataHubWriteback
 from repair_agent.models import (
     FglEdge,
@@ -340,7 +341,10 @@ async def open_pull_request_impl(context: RunContext) -> PullRequestResult:
         ],
         commit_message=f"Repair schema drift {drift.id}",
     )
-    dry_run = DryRunPRProvider(context.settings.repo_root / "examples" / "pr_bodies")
+    dry_run = DryRunPRProvider(
+        context.settings.repo_root / ".repair-agent" / "pr_bodies",
+        repo_root=context.settings.repo_root,
+    )
     provider = (
         GhCliPRProvider(
             context.settings.repo_root,
@@ -398,7 +402,7 @@ async def write_back_impl(context: RunContext) -> list[WritebackAction]:
         pr_url=pr.url,
         on_degradation=context.degrade,
     )
-    migration_path = context.settings.repo_root / "examples" / "migration_docs" / f"{drift.id}.md"
+    migration_path = context.settings.repo_root / ".repair-agent" / "migration_docs" / f"{drift.id}.md"
     migration_path.parent.mkdir(parents=True, exist_ok=True)
     migration_path.write_text(migration.markdown, encoding="utf-8")
 
@@ -426,7 +430,7 @@ async def write_back_impl(context: RunContext) -> list[WritebackAction]:
                     kind="update_fine_grained_lineage",
                     target_urn=urn,
                     detail="Could not read current lineage, so no destructive reconciliation was attempted.",
-                    datahub_url=writeback._entity_url(urn) + "/Lineage",
+                    datahub_url=datahub_entity_url(context.settings.datahub_frontend_url, urn, suffix="Lineage"),
                     ok=False,
                     error=str(exc),
                 )
@@ -438,7 +442,7 @@ async def write_back_impl(context: RunContext) -> list[WritebackAction]:
         "update_fine_grained_lineage",
         drift.dataset_urn,
         lineage_results,
-        writeback._entity_url(drift.dataset_urn) + "/Lineage",
+        datahub_entity_url(context.settings.datahub_frontend_url, drift.dataset_urn, suffix="Lineage"),
         f"Updated corrected field lineage for {len(patched_urns)} patched dataset(s).",
     )
 
@@ -464,7 +468,7 @@ async def write_back_impl(context: RunContext) -> list[WritebackAction]:
         "document_column",
         drift.dataset_urn,
         documentation_results,
-        writeback._entity_url(drift.dataset_urn),
+        datahub_entity_url(context.settings.datahub_frontend_url, drift.dataset_urn),
         f"Documented the repaired path on {len(documentation_results)} dataset field(s).",
     )
 
@@ -479,7 +483,7 @@ async def write_back_impl(context: RunContext) -> list[WritebackAction]:
         writeback.attach_migration_doc,
         drift.dataset_urn,
         pr.url,
-        migration_path.resolve().as_uri(),
+        migration_path.relative_to(context.settings.repo_root).as_posix(),
     )
     finished_at = datetime.now(UTC)
     record_action = await asyncio.to_thread(

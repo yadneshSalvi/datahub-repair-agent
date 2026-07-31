@@ -61,7 +61,7 @@ function ImpactNodeCard({ data }: NodeProps<ImpactFlowNode>) {
     >
       <Handle type="target" position={Position.Left} className="!size-1.5 !border-0 !bg-text-faint" />
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[11px] font-semibold text-text">{lineage.name}</span>
+        <span className="truncate text-[11px] font-semibold text-text" title={lineage.name}>{lineage.name}</span>
         <span className="rounded-[4px] border border-border-lit bg-surface-2 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.1em] text-text-faint">{platform}</span>
       </div>
       <div className="mt-0.5 text-[8px] uppercase tracking-[0.08em] text-text-faint">{lineage.kind.replaceAll('_', ' ')}</div>
@@ -72,7 +72,7 @@ function ImpactNodeCard({ data }: NodeProps<ImpactFlowNode>) {
           <span key={column} className={cn(
             'min-w-0 shrink truncate rounded-[4px] border border-border-lit bg-bg px-1.5 py-0.5 font-mono text-[8px] text-text-dim',
             column === driftColumn && 'border-patch/40 bg-patch/10 text-[#fcd34d]',
-          )}>{column}</span>
+          )} title={column}>{column}</span>
         )) : <span className="text-[8px] italic text-text-faint">outside column path</span>}
       </div>
       <Handle type="source" position={Position.Right} className="!size-1.5 !border-0 !bg-text-faint" />
@@ -294,7 +294,7 @@ export function ImpactGraphPage() {
                 <Badge variant={selectedNode.bucket === 'REQUIRES_PATCH' ? 'patch' : selectedNode.bucket === 'DOWNSTREAM_UNAFFECTED' ? 'unaffected' : selectedNode.bucket === 'SKIPPED' ? 'skipped' : 'accent'}>
                   {selectedNode.bucket ? bucketMeta[selectedNode.bucket].label : 'Drift source'}
                 </Badge>
-                <h2 className="mb-0 mt-3 truncate text-[18px] font-semibold text-text">{selectedNode.name}</h2>
+                <h2 className="mb-0 mt-3 truncate text-[18px] font-semibold text-text" title={selectedNode.name}>{selectedNode.name}</h2>
                 <div className="mt-1 font-mono text-[9px] text-text-faint">{selectedNode.kind.replaceAll('_', ' ')} · hop {selectedNode.hops ?? 0}</div>
               </div>
               <Button aria-label="Close evidence panel" variant="ghost" size="icon" onClick={() => setSelectedUrn(null)}><X className="size-4" /></Button>

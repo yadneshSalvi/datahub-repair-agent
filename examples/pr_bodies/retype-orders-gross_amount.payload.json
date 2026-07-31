@@ -1,0 +1,10 @@
+{
+  "branch": "repair/retype-orders-gross_amount",
+  "base": "main",
+  "title": "Repair shop_prod.raw.orders: gross_amount \u2192 gross_amount",
+  "commit_message": "Repair schema drift retype-orders-gross_amount",
+  "files": [
+    "demo-warehouse/dags/shopflow_daily.py",
+    "demo-warehouse/models/staging/stg_orders.sql"
+  ]
+}

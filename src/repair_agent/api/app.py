@@ -26,7 +26,7 @@ from repair_agent.config import Settings, get_settings
 from repair_agent.datahub_io.client import DataHubIO
 from repair_agent.drift.detect import detect_drift
 from repair_agent.drift.snapshot import SchemaSnapshot
-from repair_agent.models import RepairRun, RunEvent
+from repair_agent.models import DriftEvent, RepairRun, RunEvent
 
 LOGGER = logging.getLogger(__name__)
 SCENARIOS = {
@@ -106,7 +106,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         def read() -> list[dict[str, object]]:
             datasets = []
-            for urn in io.list_namespace_datasets(active_settings.namespace_prefix, skip_cache=True):
+            baseline = SchemaSnapshot.load(_snapshot_path(active_settings))
+            for urn in baseline.dataset_urns():
                 schema = io.get_schema(urn, skip_cache=True)
                 subtype = io.graph.get_aspect(urn, SubTypesClass)
                 try:
@@ -159,19 +160,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def drift_events() -> list[dict[str, object]]:
         io = DataHubIO(active_settings)
 
-        def read() -> list[dict[str, object]]:
-            io.preflight()
-            baseline = SchemaSnapshot.load()
-            live = SchemaSnapshot.capture(io, active_settings.namespace_prefix, known_urns=baseline.dataset_urns())
-            return [event.model_dump(mode="json") for event in detect_drift(baseline, live)]
-
         try:
-            return await asyncio.to_thread(read)
+            events = await asyncio.to_thread(_live_drift_events, io, active_settings)
+            return [event.model_dump(mode="json") for event in events]
         except Exception as exc:
             raise HTTPException(status_code=503, detail=f"Could not detect live drift: {exc}") from exc
 
     @application.post("/api/runs", status_code=202)
     async def start_run(request_body: StartRunRequest) -> dict[str, str]:
+        try:
+            active_events = await asyncio.to_thread(
+                _live_drift_events,
+                DataHubIO(active_settings),
+                active_settings,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=f"Could not validate the live drift request: {exc}") from exc
+        active_ids = [event.id for event in active_events]
+        if request_body.drift_id not in active_ids:
+            available = ", ".join(active_ids) or "none"
+            raise HTTPException(
+                status_code=404,
+                detail=f"Unknown or inactive drift ID {request_body.drift_id!r}. Active drift IDs: {available}.",
+            )
         run_id = f"run-{uuid4().hex}"
         repair_run = RepairRun(id=run_id)
         queue: asyncio.Queue[RunEvent] = asyncio.Queue()
@@ -259,7 +270,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if reverted.returncode != 0:
                 raise HTTPException(status_code=500, detail=f"Could not revert active drift: {reverted.stderr.strip()}")
             outputs.append(reverted.stdout.strip())
-        seeded = await _run_script(active_settings, "seed_datahub.py", ["--verify"])
+        seeded = await _run_script(active_settings, "seed_datahub.py", ["--reset", "--verify"])
         if seeded.returncode != 0:
             raise HTTPException(status_code=500, detail=f"Could not re-seed the demo catalog: {seeded.stderr.strip()}")
         outputs.append(seeded.stdout.strip())
@@ -313,6 +324,23 @@ def _require_run(application: FastAPI, run_id: str) -> RepairRun:
     if repair_run is None:
         raise HTTPException(status_code=404, detail=f"Run {run_id!r} was not found.")
     return repair_run
+
+
+def _live_drift_events(datahub_io: DataHubIO, settings: Settings) -> list[DriftEvent]:
+    """Read the one live drift source shared by the API listing and run gate."""
+
+    datahub_io.preflight()
+    baseline = SchemaSnapshot.load(_snapshot_path(settings))
+    live = SchemaSnapshot.capture(
+        datahub_io,
+        settings.namespace_prefix,
+        known_urns=baseline.dataset_urns(),
+    )
+    return detect_drift(baseline, live)
+
+
+def _snapshot_path(settings: Settings) -> Path:
+    return settings.repo_root / "demo-warehouse" / ".repair-agent" / "snapshot.json"
 
 
 def _run_dir(settings: Settings) -> Path:

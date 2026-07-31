@@ -635,13 +635,20 @@ def reset_namespace(io: DataHubIO, settings: Settings) -> list[str]:
     listing, and every URN is re-checked textually at the destructive call site.
     """
 
-    candidates = io.list_namespace_datasets(settings.namespace_prefix, skip_cache=True)
+    known_urns = [dataset_urn(definition, settings) for definition in DATASET_DEFINITIONS.values()]
+    incidents = DataHubWriteback(io, settings).resolve_namespace_incidents(known_urns)
+    CONSOLE.print(f"[yellow]Reset:[/] resolved {len(incidents)} incident(s) attached to ShopFlow datasets")
+    candidates = dict.fromkeys(
+        [*io.list_namespace_datasets(settings.namespace_prefix, skip_cache=True), *known_urns]
+    )
     touched: list[str] = []
     for urn in candidates:
         # list_namespace_datasets parses the URN name and performs startswith; retain a
         # second textual guard at the destructive call site for defense in depth.
         if f",{settings.namespace_prefix}" not in urn:
             raise RuntimeError(f"Refusing to delete out-of-namespace entity: {urn}")
+        if not io.graph.exists(urn):
+            continue
         io.graph.delete_entity(urn=urn, hard=True)
         touched.append(urn)
     _write_reset_audit(settings, touched)
@@ -821,6 +828,9 @@ def main() -> int:
             _write_reset_audit(settings, [])
         elif args.reset:
             touched = reset_namespace(io, settings)
+            applied_drift = settings.repo_root / "demo-warehouse" / ".repair-agent" / "applied_drift.json"
+            if applied_drift.exists():
+                applied_drift.unlink()
             CONSOLE.print(
                 f"[yellow]Reset:[/] hard-deleted {len(touched)} dataset(s), all under {settings.namespace_prefix}"
             )

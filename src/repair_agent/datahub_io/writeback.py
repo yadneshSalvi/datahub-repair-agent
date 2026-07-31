@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from urllib.parse import quote
+from pathlib import PurePosixPath
+from typing import Any
+from urllib.parse import urlparse
 
 from datahub.api.entities.dataprocess.dataprocess_instance import DataProcessInstance, InstanceRunResult
-from datahub.emitter.mce_builder import make_schema_field_urn, make_tag_urn, make_user_urn
+from datahub.emitter.mce_builder import datahub_guid, make_schema_field_urn, make_tag_urn, make_user_urn
 from datahub.emitter.mcp import MetadataChangeProposalWrapper
 from datahub.emitter.rest_emitter import DataHubRestEmitter
 from datahub.metadata.schema_classes import (
@@ -19,18 +21,39 @@ from datahub.metadata.schema_classes import (
     FineGrainedLineageDownstreamTypeClass,
     FineGrainedLineageUpstreamTypeClass,
     GlobalTagsClass,
+    IncidentInfoClass,
+    IncidentSourceClass,
+    IncidentSourceTypeClass,
+    IncidentStageClass,
+    IncidentStateClass,
+    IncidentStatusClass,
+    IncidentTypeClass,
     InstitutionalMemoryClass,
     InstitutionalMemoryMetadataClass,
     TagAssociationClass,
     TagPropertiesClass,
     UpstreamClass,
 )
-from datahub.metadata.urns import DatasetUrn
+from datahub.metadata.urns import DatasetUrn, IncidentUrn
 from datahub.specific.dataset import DatasetPatchBuilder
 
 from repair_agent.config import Settings, get_settings
 from repair_agent.datahub_io.client import DataHubIO
+from repair_agent.datahub_io.links import datahub_entity_url
 from repair_agent.models import DriftEvent, FglEdge, WritebackAction
+
+_DATASET_INCIDENTS_QUERY = """
+query RepairIncidents($urn: String!) {
+  dataset(urn: $urn) {
+    incidents(start: 0, count: 100) { incidents { urn title } }
+  }
+}
+"""
+_UPDATE_INCIDENT_STATUS = """
+mutation UpdateRepairIncident($urn: String!, $input: IncidentStatusInput!) {
+  updateIncidentStatus(urn: $urn, input: $input)
+}
+"""
 
 
 class DataHubWriteback:
@@ -239,80 +262,52 @@ class DataHubWriteback:
     ) -> WritebackAction:
         """Raise an OSS incident in TRIAGE and resolve it as FIXED after PR creation."""
 
-        mutation = """
-        mutation RaiseRepairIncident($input: RaiseIncidentInput!) {
-          raiseIncident(input: $input)
-        }
-        """
-        update = """
-        mutation FixRepairIncident($urn: String!, $input: IncidentStatusInput!) {
-          updateIncidentStatus(urn: $urn, input: $input)
-        }
-        """
-        existing = """
-        query ExistingRepairIncidents($urn: String!) {
-          dataset(urn: $urn) {
-            incidents(start: 0, count: 50) { incidents { urn title } }
-          }
-        }
-        """
         try:
             subject = drift.old_column or drift.new_column or "schema"
             title = f"Schema drift: {drift.dataset_name}.{subject}"
-            # Re-running the same repair must not pile up duplicate incidents (D18): reuse the
-            # incident already raised for this drift if one exists. raiseIncident mints a fresh
-            # random URN every call, so identity has to come from the title we control.
-            incident_urn: str | None = None
-            try:
-                found = self.graph.execute_graphql(existing, variables={"urn": drift.dataset_urn})
-                for candidate in (((found.get("dataset") or {}).get("incidents") or {}).get("incidents") or []):
-                    if candidate.get("title") == title:
-                        incident_urn = candidate.get("urn")
-                        break
-            except Exception:
-                # A failed lookup must not block raising a new incident.
-                incident_urn = None
-            raised = {"raiseIncident": incident_urn} if incident_urn else self.graph.execute_graphql(
-                mutation,
-                variables={
-                    "input": {
-                        "type": "DATA_SCHEMA",
-                        "title": title,
-                        "description": f"{drift.rationale} This OSS incident is the governance substitute for a "
-                        "DataHub Cloud metadata proposal.",
-                        "resourceUrn": drift.dataset_urn,
-                        "startedAt": int(drift.detected_at.timestamp() * 1000),
-                        "source": {"type": "MANUAL"},
-                        "status": {"state": "ACTIVE", "stage": "TRIAGE"},
-                        "priority": "HIGH",
-                    }
-                },
+            # Deterministic URN derived from the drift identity, so re-running a repair
+            # updates one incident instead of minting another. `raiseIncident` mints a random
+            # URN, and de-duplicating by title afterwards is unreliable: the incident search
+            # index lags, so a lookup right after a reset finds nothing and a duplicate is
+            # created anyway. Five identical incidents had piled up this way.
+            incident_urn = str(
+                IncidentUrn(datahub_guid({"drift": drift.id, "dataset": drift.dataset_urn, "column": subject}))
             )
-            reused = incident_urn is not None
-            incident_urn = raised.get("raiseIncident")
-            if not incident_urn:
-                raise RuntimeError("DataHub returned no incident URN from raiseIncident")
-            if reused:
-                # Reopen the reused incident so the TRIAGE -> FIXED transition is observable again.
-                self.graph.execute_graphql(
-                    update,
-                    variables={
-                        "urn": incident_urn,
-                        "input": {"state": "ACTIVE", "stage": "TRIAGE", "message": drift.rationale},
-                    },
+            existed = self.graph.exists(incident_urn)
+            now_ms = int(datetime.now().timestamp() * 1000)
+            stamp = AuditStampClass(time=now_ms, actor=make_user_urn("datahub-repair-agent"))
+            self.graph.emit_mcp(
+                MetadataChangeProposalWrapper(
+                    entityUrn=incident_urn,
+                    aspect=IncidentInfoClass(
+                        type=IncidentTypeClass.DATA_SCHEMA,
+                        title=title,
+                        description=(
+                            f"{drift.rationale} This OSS incident is the governance substitute for a "
+                            "DataHub Cloud metadata proposal, which is not available in DataHub Core."
+                        ),
+                        entities=[drift.dataset_urn],
+                        priority=1,
+                        source=IncidentSourceClass(type=IncidentSourceTypeClass.MANUAL),
+                        status=IncidentStatusClass(
+                            state=IncidentStateClass.ACTIVE,
+                            stage=IncidentStageClass.TRIAGE,
+                            message=drift.rationale,
+                            lastUpdated=stamp,
+                        ),
+                        created=stamp,
+                    ),
                 )
+            )
+            reused = existed
             stage = "TRIAGE"
-            if pr_url:
-                self.graph.execute_graphql(
-                    update,
-                    variables={
-                        "urn": incident_urn,
-                        "input": {
-                            "state": "RESOLVED",
-                            "stage": "FIXED",
-                            "message": f"Validated repair is available for review at {pr_url}",
-                        },
-                    },
+            review_reference = _safe_reference(pr_url)
+            if review_reference:
+                self._update_incident_status(
+                    incident_urn,
+                    state="RESOLVED",
+                    stage="FIXED",
+                    message=f"Validated repair is available for review at {review_reference}",
                 )
                 stage = "FIXED"
             return self._action(
@@ -332,11 +327,53 @@ class DataHubWriteback:
                 suffix="/Incidents",
             )
 
+    def resolve_namespace_incidents(self, dataset_urns: list[str]) -> list[str]:
+        """Resolve incidents attached to explicitly enumerated in-namespace datasets."""
+
+        resolved: list[str] = []
+        for dataset_urn in sorted(set(dataset_urns)):
+            name = DatasetUrn.from_string(dataset_urn).name
+            if not name.startswith(self.settings.namespace_prefix):
+                raise ValueError(f"Refusing to resolve incidents outside {self.settings.namespace_prefix}: {dataset_urn}")
+            for incident in self._dataset_incidents(dataset_urn):
+                incident_urn = incident.get("urn")
+                if not isinstance(incident_urn, str):
+                    continue
+                self._update_incident_status(
+                    incident_urn,
+                    state="RESOLVED",
+                    stage="FIXED",
+                    message="Resolved by the ShopFlow demo namespace reset.",
+                )
+                resolved.append(incident_urn)
+        return sorted(set(resolved))
+
+    def _dataset_incidents(self, dataset_urn: str) -> list[dict[str, Any]]:
+        response = self.graph.execute_graphql(_DATASET_INCIDENTS_QUERY, variables={"urn": dataset_urn})
+        incidents = (((response.get("dataset") or {}).get("incidents") or {}).get("incidents") or [])
+        return [incident for incident in incidents if isinstance(incident, dict)]
+
+    def _update_incident_status(
+        self,
+        incident_urn: str,
+        *,
+        state: str,
+        stage: str,
+        message: str,
+    ) -> None:
+        self.graph.execute_graphql(
+            _UPDATE_INCIDENT_STATUS,
+            variables={
+                "urn": incident_urn,
+                "input": {"state": state, "stage": stage, "message": message},
+            },
+        )
+
     def attach_migration_doc(
         self,
         target_urn: str,
-        pr_url: str,
-        migration_doc_url: str,
+        pr_url: str | None,
+        migration_doc_url: str | None,
     ) -> WritebackAction:
         """Attach stable PR and migration-document links as institutional memory."""
 
@@ -347,9 +384,13 @@ class DataHubWriteback:
                 time=int(datetime.now().timestamp() * 1000),
                 actor=make_user_urn("datahub-repair-agent"),
             )
-            additions = (
-                (pr_url, "Schema-drift repair pull request"),
-                (migration_doc_url, "Schema-drift migration and rollback guide"),
+            additions = tuple(
+                (url, description)
+                for reference, description in (
+                    (pr_url, "Schema-drift repair pull request"),
+                    (migration_doc_url, "Schema-drift migration and rollback guide"),
+                )
+                if (url := _safe_reference(reference)) is not None
             )
             known_urls = {element.url for element in elements}
             for url, description in additions:
@@ -444,19 +485,10 @@ class DataHubWriteback:
             kind=kind,
             target_urn=target_urn,
             detail=detail,
-            datahub_url=f"{self._entity_url(target_urn)}{suffix}",
+            datahub_url=datahub_entity_url(self.settings.datahub_frontend_url, target_urn, suffix=suffix),
             ok=error is None,
             error=str(error) if error else None,
         )
-
-    def _entity_url(self, urn: str) -> str:
-        encoded_urn = quote(urn, safe="")
-        entity_type = "dataset"
-        if urn.startswith("urn:li:tag:"):
-            entity_type = "tag"
-        elif urn.startswith("urn:li:dataProcessInstance:"):
-            entity_type = "dataProcessInstance"
-        return f"{self.settings.datahub_frontend_url.rstrip('/')}/{entity_type}/{encoded_urn}"
 
     @staticmethod
     def _fine_grained_lineage(edge: FglEdge) -> FineGrainedLineageClass:
@@ -470,3 +502,20 @@ class DataHubWriteback:
             transformOperation=edge.transform_operation,
             query=edge.query,
         )
+
+
+def _safe_reference(reference: str | None) -> str | None:
+    """Allow web URLs and clean repository-relative paths, never local file URLs."""
+
+    if not reference or not reference.strip():
+        return None
+    value = reference.strip()
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        return value
+    if parsed.scheme or value.startswith(("/", "~")):
+        return None
+    path = PurePosixPath(value)
+    if ".." in path.parts:
+        return None
+    return path.as_posix()

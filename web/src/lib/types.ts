@@ -154,6 +154,7 @@ export interface RepairRun {
   failed_stage: string | null
   /** Phases that genuinely produced output; drives the timeline ticks. */
   completed_stages: string[]
+  mode: 'agent' | 'deterministic'
   degraded: boolean
   degradations: string[]
   drift: DriftEvent | null

@@ -12,7 +12,7 @@ interface AppContextValue {
   streamConnected: boolean
   streamError: string | null
   setCurrentRun: (run: RepairRun | null) => void
-  startRunState: (runId: string) => void
+  startRunState: (runId: string, mode: RepairRun['mode']) => void
   refreshRun: () => Promise<void>
   refreshHealth: () => Promise<void>
   resetDemo: () => Promise<void>
@@ -29,6 +29,7 @@ function placeholderRun(id: string): RepairRun {
     error: null,
     failed_stage: null,
     completed_stages: [],
+    mode: 'agent',
     degraded: false,
     degradations: [],
     drift: null,
@@ -87,8 +88,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (stream.finished) void refreshRun()
   }, [refreshRun, stream.finished])
 
-  const startRunState = useCallback((runId: string) => {
-    setCurrentRun(placeholderRun(runId))
+  const startRunState = useCallback((runId: string, mode: RepairRun['mode']) => {
+    setCurrentRun({ ...placeholderRun(runId), mode })
   }, [])
 
   const resetDemo = useCallback(async () => {

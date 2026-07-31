@@ -32,7 +32,7 @@ export function AppShell() {
   const location = useLocation()
   const { health, healthLoading, healthError, currentRun, resetDemo, resetting } = useApp()
   const [resetError, setResetError] = useState<string | null>(null)
-  const deterministicMode = Boolean(currentRun?.degraded || (health && !health.llm_available))
+  const deterministicMode = currentRun ? currentRun.mode === 'deterministic' : Boolean(health && !health.llm_available)
 
   const handleReset = async () => {
     setResetError(null)
@@ -117,6 +117,7 @@ export function AppShell() {
                   {currentRun.status}
                 </Badge>
                 {currentRun.degraded && <Badge variant="patch">degraded</Badge>}
+                <Badge variant="neutral">{currentRun.mode}</Badge>
                 <span className="hidden text-[10px] text-text-faint xl:inline">started {timeAgo(currentRun.started_at)}</span>
               </>
             ) : (
@@ -144,10 +145,16 @@ export function AppShell() {
                 {resetError ?? healthError}
               </div>
             )}
-            {health && !health.llm_available && (
+            {health && !health.llm_available && !currentRun?.degraded && (
               <div className="mb-4 flex items-center justify-between gap-4 rounded-[8px] border border-patch/25 bg-patch/[0.07] px-3 py-2 text-[11px] text-[#fcd34d]">
-                <span>Deterministic fallback is active. Patches, validation, PR packaging, and write-back remain fully operational.</span>
-                <Badge variant="patch">degraded mode</Badge>
+                <span>No OpenAI key is configured. Deterministic mode remains fully operational for patches, validation, PR packaging, and write-back.</span>
+                <Badge variant="patch">deterministic</Badge>
+              </div>
+            )}
+            {currentRun?.degraded && (
+              <div className="mb-4 flex items-center justify-between gap-4 rounded-[8px] border border-danger/30 bg-danger/[0.07] px-3 py-2 text-[11px] text-[#fda4af]">
+                <span>{currentRun.degradations.at(-1) ?? 'A dependency failed and the run continued with reduced capabilities.'}</span>
+                <Badge variant="danger">degraded</Badge>
               </div>
             )}
             <Outlet />

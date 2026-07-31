@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/app-shell'
 import { Skeleton } from './components/ui/skeleton'
 
@@ -9,6 +9,7 @@ const ImpactGraphPage = lazy(() => import('./pages/impact-graph').then((module) 
 const PatchesPage = lazy(() => import('./pages/patches').then((module) => ({ default: module.PatchesPage })))
 const PullRequestPage = lazy(() => import('./pages/pull-request').then((module) => ({ default: module.PullRequestPage })))
 const WritebackPage = lazy(() => import('./pages/writeback').then((module) => ({ default: module.WritebackPage })))
+const NotFoundPage = lazy(() => import('./pages/not-found').then((module) => ({ default: module.NotFoundPage })))
 
 function RouteFallback() {
   return (
@@ -29,7 +30,7 @@ export default function App() {
         <Route path="patches" element={<Suspense fallback={<RouteFallback />}><PatchesPage /></Suspense>} />
         <Route path="pr" element={<Suspense fallback={<RouteFallback />}><PullRequestPage /></Suspense>} />
         <Route path="writeback" element={<Suspense fallback={<RouteFallback />}><WritebackPage /></Suspense>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Suspense fallback={<RouteFallback />}><NotFoundPage /></Suspense>} />
       </Route>
     </Routes>
   )

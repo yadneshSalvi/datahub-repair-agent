@@ -9,5 +9,5 @@
   "new_type": "VARCHAR(20)",
   "confidence": 1.0,
   "rationale": "`gross_amount` remains present, but its native type changed from NUMBER(12,2) to VARCHAR(20) — detected as a retype.",
-  "detected_at": "2026-07-31T22:08:34.835051Z"
+  "detected_at": "2026-07-31T23:10:07.338635Z"
 }

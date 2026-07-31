@@ -91,6 +91,7 @@ async def run_repair(
     active_settings = settings or get_settings()
     io = datahub_io or DataHubIO(active_settings)
     active_run = run or RepairRun(id=run_id)
+    active_run.mode = "agent" if use_llm else "deterministic"
     context = RunContext(
         run=active_run,
         drift_id=drift_id,
@@ -108,10 +109,15 @@ async def run_repair(
     )
     try:
         if not use_llm:
-            context.degrade("LLM disabled by --no-llm; using deterministic orchestration and Jinja prose.")
             context.use_llm = False
+            context.emit(
+                phase="detect",
+                title="Deterministic mode selected",
+                detail="Using the first-class deterministic orchestration path with templated review prose.",
+            )
             await _deterministic_complete(context)
         elif not active_settings.openai_api_key.strip():
+            active_run.mode = "deterministic"
             context.degrade(
                 "OPENAI_API_KEY is missing or empty; add it to .env to enable agent reasoning. "
                 "The deterministic repair, dry-run PR, and DataHub write-back still ran."
@@ -166,11 +172,13 @@ async def run_repair(
         title="Repair run complete" if active_run.status == "succeeded" else "Repair run FAILED",
         detail=(
             f"Status {active_run.status}; {len(active_run.patches)} patches, "
-            f"{len(active_run.writeback)} DataHub write-back actions, degraded={active_run.degraded}."
+            f"{len(active_run.writeback)} DataHub write-back actions, mode={active_run.mode}, "
+            f"degraded={active_run.degraded}."
             + (f" Failure ({active_run.failed_stage}): {active_run.error}" if active_run.error else "")
         ),
         data={
             "status": active_run.status,
+            "mode": active_run.mode,
             "degraded": active_run.degraded,
             "error": active_run.error,
             "failed_stage": active_run.failed_stage,
@@ -260,10 +268,12 @@ async def _run_with_model_fallback(context: RunContext) -> None:
                 )
                 continue
             reason = _degradation_reason(exc)
+            context.run.mode = "deterministic"
             context.degrade(reason)
             context.use_llm = False
             await _deterministic_complete(context)
             return
+    context.run.mode = "deterministic"
     context.degrade(
         "No model in the fallback chain was available (gpt-5.6-sol → gpt-5.4 → gpt-5.4-mini); "
         f"using deterministic orchestration. Last error: {failures[-1] if failures else 'unknown model error'}"

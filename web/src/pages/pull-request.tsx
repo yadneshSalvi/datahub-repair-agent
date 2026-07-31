@@ -31,20 +31,24 @@ mermaid.initialize({
   },
 })
 
-function safeNodeId(index: number) {
-  return `node_${index}`
-}
-
 function buildPrBody(run: RepairRun) {
   if (!run.drift || !run.impact) return ''
   const refs = referenceCounts(run)
-  const nodeIndex = new Map(run.impact.graph.nodes.map((node, index) => [node.urn, index]))
+  const nodeIds = new Map<string, string>()
+  const nodeId = (urn: string, column: string) => {
+    const key = `${urn}\u0000${column}`
+    const existing = nodeIds.get(key)
+    if (existing) return existing
+    const created = `n${nodeIds.size}`
+    nodeIds.set(key, created)
+    return created
+  }
   const mermaidLines = run.impact.graph.edges.map((edge) => {
     const source = run.impact!.graph.nodes.find((node) => node.urn === edge.source_urn)
     const target = run.impact!.graph.nodes.find((node) => node.urn === edge.target_urn)
     const sourceColumn = edge.source_columns[0] ?? ''
     const targetColumn = edge.target_columns[0] ?? ''
-    return `    ${safeNodeId(nodeIndex.get(edge.source_urn) ?? 0)}["${source?.name ?? 'source'}.${sourceColumn}"] -->|"${edge.transform_operation ?? 'LINEAGE'}"| ${safeNodeId(nodeIndex.get(edge.target_urn) ?? 0)}["${target?.name ?? 'target'}.${targetColumn}"]`
+    return `    ${nodeId(edge.source_urn, sourceColumn)}["${source?.name ?? 'source'}.${sourceColumn}"] -->|"${edge.transform_operation ?? 'LINEAGE'}"| ${nodeId(edge.target_urn, targetColumn)}["${target?.name ?? 'target'}.${targetColumn}"]`
   })
   const fileRows = run.patches.map((patch) => `| \`${patch.file_path}\` | ${patch.kind} | ${patch.valid ? 'Validated' : 'Blocked'} | ${patch.strategy} |`).join('\n')
   const referenceRows = run.patches.flatMap((patch) => patch.references.map((reference) => `| \`${reference.table}\` | \`${reference.column}\` | ${reference.line ?? '—'} | **${reference.status}** | ${reference.detail} |`)).join('\n')
