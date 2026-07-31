@@ -1,0 +1,13 @@
+{
+  "id": "drop-customers-marketing_opt_in",
+  "kind": "DROP",
+  "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+  "dataset_name": "shop_prod.raw.customers",
+  "old_column": "marketing_opt_in",
+  "new_column": null,
+  "old_type": "BOOLEAN",
+  "new_type": null,
+  "confidence": 1.0,
+  "rationale": "`marketing_opt_in` disappeared from the live schema and no added column met the 0.55 rename-similarity threshold — detected as a drop.",
+  "detected_at": "2026-07-31T20:02:20.667288Z"
+}

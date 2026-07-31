@@ -1,0 +1,51 @@
+--- a/demo-warehouse/dags/shopflow_daily.py
++++ b/demo-warehouse/dags/shopflow_daily.py
+@@ -10,9 +10,9 @@
+ 
+ 
+ RECENT_ORDERS_SQL = """
+-select order_id, customer_id, order_placed_at, gross_amount
++select order_id, customer_id, order_created_at, gross_amount
+ from shop_prod.raw.orders
+-where order_placed_at >= dateadd('day', -1, current_timestamp())
++where order_created_at >= dateadd('day', -1, current_timestamp())
+ """
+ 
+ PRODUCT_CATALOG_SQL = """
+--- a/demo-warehouse/models/marts/fct_orders.sql
++++ b/demo-warehouse/models/marts/fct_orders.sql
+@@ -9,7 +9,7 @@
+ select
+     o.order_id,
+     o.customer_id,
+-    cast(o.order_placed_at as date) as order_date,
++    cast(o.order_created_at as date) as order_date,
+     o.order_status,
+     coalesce(i.item_count, 0) as item_count,
+     o.net_amount as net_revenue
+--- a/demo-warehouse/models/staging/schema.yml
++++ b/demo-warehouse/models/staging/schema.yml
+@@ -10,9 +10,9 @@
+       - name: customer_id
+         description: Customer who placed the order.
+         tests: [not_null]
+-      - name: order_placed_at
+-        description: Timestamp at which the order was placed.
+-        tests: [not_null]
++      - name: order_created_at
++        description: Timestamp at which the order was placed. Renamed by schema-drift-repair from `order_placed_at` to `order_created_at`.
++        tests: [not_null, unique]
+       - name: order_status
+         description: Current lifecycle status of the order.
+         tests: [not_null]
+--- a/demo-warehouse/models/staging/stg_orders.sql
++++ b/demo-warehouse/models/staging/stg_orders.sql
+@@ -4,7 +4,7 @@
+ select
+     order_id,
+     customer_id,
+-    order_placed_at,
++    order_created_at,
+     order_status,
+     gross_amount,
+     gross_amount - coalesce(discount_amount, 0) as net_amount

@@ -1,0 +1,52 @@
+--- a/demo-warehouse/models/marts/dim_customers.sql
++++ b/demo-warehouse/models/marts/dim_customers.sql
+@@ -3,7 +3,8 @@
+     email,
+     full_name,
+     signup_date,
+-    country_code,
+-    coalesce(marketing_opt_in, false) as is_marketable
++    country_code
++    -- REMOVED BY schema-drift-repair (2026-08-01): upstream column dropped. coalesce(marketing_opt_in, false) as is_marketable
++    -- TODO(data-team): confirm no consumer depends on this
+ from {{ ref('stg_customers') }}
+ 
+--- a/demo-warehouse/models/marts/schema.yml
++++ b/demo-warehouse/models/marts/schema.yml
+@@ -41,10 +41,6 @@
+       - name: country_code
+         description: Two-letter customer country code.
+         tests: [not_null]
+-      - name: is_marketable
+-        description: Normalized indication that marketing contact is permitted.
+-        tests: [not_null]
+-
+   - name: dim_products
+     description: Product dimension used by merchandising marts.
+     columns:
+--- a/demo-warehouse/models/staging/schema.yml
++++ b/demo-warehouse/models/staging/schema.yml
+@@ -41,10 +41,6 @@
+       - name: country_code
+         description: Two-letter customer country code.
+         tests: [not_null]
+-      - name: marketing_opt_in
+-        description: Whether the customer accepts marketing messages.
+-        tests: [not_null]
+-
+   - name: stg_order_items
+     description: Order lines enriched with their extended line total.
+     columns:
+--- a/demo-warehouse/models/staging/stg_customers.sql
++++ b/demo-warehouse/models/staging/stg_customers.sql
+@@ -6,7 +6,8 @@
+     email,
+     full_name,
+     signup_date,
+-    country_code,
+-    marketing_opt_in
++    country_code
++    -- REMOVED BY schema-drift-repair (2026-08-01): upstream column dropped. marketing_opt_in
++    -- TODO(data-team): confirm no consumer depends on this
+ from source
+ 

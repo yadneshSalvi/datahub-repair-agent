@@ -1,0 +1,24 @@
+--- a/demo-warehouse/dags/shopflow_daily.py
++++ b/demo-warehouse/dags/shopflow_daily.py
+@@ -10,7 +10,7 @@
+ 
+ 
+ RECENT_ORDERS_SQL = """
+-select order_id, customer_id, order_placed_at, gross_amount
++select order_id, customer_id, order_placed_at, CAST(gross_amount AS NUMBER(12,2)) AS gross_amount
+ from shop_prod.raw.orders
+ where order_placed_at >= dateadd('day', -1, current_timestamp())
+ """
+--- a/demo-warehouse/models/staging/stg_orders.sql
++++ b/demo-warehouse/models/staging/stg_orders.sql
+@@ -6,8 +6,8 @@
+     customer_id,
+     order_placed_at,
+     order_status,
+-    gross_amount,
+-    gross_amount - coalesce(discount_amount, 0) as net_amount
++    CAST(gross_amount AS NUMBER(12,2)) AS gross_amount,
++    CAST(gross_amount AS NUMBER(12,2)) - coalesce(discount_amount, 0) as net_amount
+ from source
+ where order_status != 'cancelled'
+ 

@@ -158,6 +158,11 @@ class ReferenceCheck(BaseModel):
     line: int | None = None
     status: Literal["OK", "UNKNOWN_COLUMN", "UNKNOWN_TABLE", "STALE_OLD_NAME"]
     detail: str
+    #: Where the resolution evidence came from. ``live_catalog`` means the column was
+    #: checked against schemaMetadata read from DataHub. ``projected_repair`` means it was
+    #: checked against the post-repair schema of a model patched earlier in the same run —
+    #: necessary because DataHub still holds that model's pre-repair schema until write-back.
+    source: Literal["live_catalog", "projected_repair", "local_cte", "unresolved"] = "unresolved"
 
 
 class Patch(BaseModel):

@@ -1,0 +1,44 @@
+[
+  {
+    "kind": "update_fine_grained_lineage",
+    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+    "detail": "Planned corrected field lineage for patched models.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.customers%2CPROD%29",
+    "status": "pending_slice_c"
+  },
+  {
+    "kind": "document_column",
+    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+    "detail": "Planned provenance documentation on renamed or migrated columns.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.customers%2CPROD%29",
+    "status": "pending_slice_c"
+  },
+  {
+    "kind": "tag_assets",
+    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+    "detail": "Planned schema-drift-detected and schema-drift-repaired tags.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.customers%2CPROD%29",
+    "status": "pending_slice_c"
+  },
+  {
+    "kind": "raise_incident",
+    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+    "detail": "Planned OSS incident lifecycle from TRIAGE to FIXED.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.customers%2CPROD%29",
+    "status": "pending_slice_c"
+  },
+  {
+    "kind": "attach_migration_doc",
+    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+    "detail": "Planned InstitutionalMemory link to this migration document.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.customers%2CPROD%29",
+    "status": "pending_slice_c"
+  },
+  {
+    "kind": "record_run",
+    "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.customers,PROD)",
+    "detail": "Planned DataProcessInstance audit record.",
+    "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.customers%2CPROD%29",
+    "status": "pending_slice_c"
+  }
+]

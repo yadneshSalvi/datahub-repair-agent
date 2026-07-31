@@ -1,0 +1,8 @@
+version: 2
+models:
+  - name: stg_orders
+    columns:
+      - name: order_created_at
+        tests:
+          - not_null
+          - unique

@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: Order-grain fact table with item counts and net revenue.
+    columns:
+      - name: order_id
+        description: Stable order primary key.
+        tests: [not_null, unique]
+      - name: customer_id
+        description: Customer who placed the order.
+        tests: [not_null]
+      - name: order_date
+        description: Calendar date on which the order was placed.
+        tests: [not_null]
+      - name: order_status
+        description: Current lifecycle status of the order.
+        tests: [not_null]
+      - name: item_count
+        description: Number of line items in the order.
+        tests: [not_null]
+      - name: net_revenue
+        description: Order revenue after discounts.
+        tests: [not_null]
+
+  - name: dim_customers
+    description: Customer dimension with a normalized marketability flag.
+    columns:
+      - name: customer_id
+        description: Stable customer primary key.
+        tests: [not_null, unique]
+      - name: email
+        description: Customer email address classified as PII.
+        tests: [not_null]
+      - name: full_name
+        description: Customer full name classified as PII.
+        tests: [not_null]
+      - name: signup_date
+        description: Date the customer registered.
+        tests: [not_null]
+      - name: country_code
+        description: Two-letter customer country code.
+        tests: [not_null]
+  - name: dim_products
+    description: Product dimension used by merchandising marts.
+    columns:
+      - name: product_id
+        description: Stable product primary key.
+        tests: [not_null, unique]
+      - name: sku
+        description: Merchant stock-keeping unit.
+        tests: [not_null, unique]
+      - name: product_name
+        description: Customer-facing product name.
+        tests: [not_null]
+      - name: category
+        description: Merchandising category.
+        tests: [not_null]
+      - name: list_price
+        description: Current catalog list price.
+        tests: [not_null]
+
+  - name: mart_daily_revenue
+    description: Daily order counts and net revenue for business reporting.
+    columns:
+      - name: order_date
+        description: Reporting calendar date.
+        tests: [not_null, unique]
+      - name: order_count
+        description: Number of orders placed on the date.
+        tests: [not_null]
+      - name: gross_revenue
+        description: Sum of net order revenue retained under the established metric name.
+        tests: [not_null]
+
+  - name: mart_customer_ltv
+    description: Lifetime order and revenue measures by customer.
+    columns:
+      - name: customer_id
+        description: Stable customer primary key.
+        tests: [not_null, unique]
+      - name: country_code
+        description: Two-letter customer country code.
+        tests: [not_null]
+      - name: lifetime_orders
+        description: Number of orders placed by the customer.
+        tests: [not_null]
+      - name: lifetime_revenue
+        description: Total net revenue attributed to the customer.
+        tests: [not_null]
+      - name: first_order_date
+        description: Date of the customer's earliest order.
+
+  - name: mart_product_performance
+    description: Units and revenue by product for merchandising analysis.
+    columns:
+      - name: product_id
+        description: Stable product primary key.
+        tests: [not_null, unique]
+      - name: sku
+        description: Merchant stock-keeping unit.
+        tests: [not_null]
+      - name: category
+        description: Merchandising category.
+        tests: [not_null]
+      - name: units_sold
+        description: Total number of product units sold.
+        tests: [not_null]
+      - name: revenue
+        description: Total extended line revenue for the product.
+        tests: [not_null]
+

@@ -1,0 +1,13 @@
+{
+  "id": "rename-orders-order_placed_at",
+  "kind": "RENAME",
+  "dataset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
+  "dataset_name": "shop_prod.raw.orders",
+  "old_column": "order_placed_at",
+  "new_column": "order_created_at",
+  "old_type": "TIMESTAMP_NTZ",
+  "new_type": "TIMESTAMP_NTZ",
+  "confidence": 0.95,
+  "rationale": "`order_placed_at` disappeared and `order_created_at` appeared with the same type TIMESTAMP_NTZ at the same ordinal position (3) — inferred as a rename with 0.95 confidence.",
+  "detected_at": "2026-07-31T19:59:46.353620Z"
+}
