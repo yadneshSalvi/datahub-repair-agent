@@ -10,9 +10,9 @@ from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 
 
 RECENT_ORDERS_SQL = """
-select order_id, customer_id, order_placed_at, gross_amount
+select order_id, customer_id, order_created_at, gross_amount
 from shop_prod.raw.orders
-where order_placed_at >= dateadd('day', -1, current_timestamp())
+where order_created_at >= dateadd('day', -1, current_timestamp())
 """
 
 PRODUCT_CATALOG_SQL = """
