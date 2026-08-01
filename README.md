@@ -22,6 +22,10 @@ Generation & Development*.
 
 ## Demo
 
+**Watch the 2:29 demo:** [`media/schema-drift-auto-repair-agent.mp4`](media/schema-drift-auto-repair-agent.mp4)
+(captions in [`media/schema-drift-auto-repair-agent.srt`](media/schema-drift-auto-repair-agent.srt)).
+A YouTube link will replace this once the submission video is published.
+
 | | |
 |---|---|
 | ![Control Room](docs/screenshots/control-room.png) | ![Impact Graph](docs/screenshots/impact-graph.png) |

@@ -36,3 +36,8 @@ node_modules/
 dist/
 demo-warehouse/.repair-agent/reset_audit.json
 .repair-agent/
+
+# Video working files (final deliverables committed explicitly)
+media/*.webm
+media/raw/
+media/build/

@@ -1,0 +1,169 @@
+1
+00:00:00,160 --> 00:00:02,900
+An upstream team renames a column.
+
+2
+00:00:03,360 --> 00:00:04,340
+Nothing errors.
+
+3
+00:00:05,120 --> 00:00:10,640
+Downstream models keep running and quietly
+produce wrong numbers, and you find
+
+4
+00:00:10,640 --> 00:00:14,100
+out days later from someone
+looking at a bad dashboard.
+
+5
+00:00:14,785 --> 00:00:17,525
+So let's break it the
+way it actually happens.
+
+6
+00:00:18,065 --> 00:00:23,765
+In DataHub, order play stat becomes
+order created at in the real catalog.
+
+7
+00:00:24,545 --> 00:00:26,805
+Nobody told the downstream teams.
+
+8
+00:00:27,410 --> 00:00:31,590
+The agent reads DataHub
+through the MCP server.
+
+9
+00:00:32,290 --> 00:00:38,470
+You can watch the calls land,
+search, schema fields, lineage
+
+10
+00:00:38,690 --> 00:00:41,750
+on the changed column, captured queries.
+
+11
+00:00:42,695 --> 00:00:44,235
+This is not GREP.
+
+12
+00:00:44,935 --> 00:00:47,915
+Every conclusion is
+grounded in the catalog.
+
+13
+00:00:48,615 --> 00:00:52,475
+Column level lineage gives
+three answers, not two.
+
+14
+00:00:53,015 --> 00:00:57,675
+Three files genuinely reference the
+changed column and need a patch.
+
+15
+00:00:58,280 --> 00:01:03,880
+Two Marts sit in the blast radius,
+but read an alias created upstream, so
+
+16
+00:01:03,880 --> 00:01:05,740
+they need no change at all.
+
+17
+00:01:06,040 --> 00:01:08,700
+And seven models are correctly skipped.
+
+18
+00:01:09,080 --> 00:01:14,355
+Click a skipped model, and it tells
+you why, exactly which columns it does
+
+19
+00:01:14,355 --> 00:01:18,535
+consume, and that none of them
+sit on the changed column's path.
+
+20
+00:01:19,315 --> 00:01:21,655
+Anything can list everything downstream.
+
+21
+00:01:22,435 --> 00:01:25,415
+Knowing what genuinely
+breaks is the hard part.
+
+22
+00:01:25,910 --> 00:01:27,290
+Patches are surgical.
+
+23
+00:01:27,990 --> 00:01:33,210
+SQLOT locates the references and
+only the changed tokens move.
+
+24
+00:01:33,910 --> 00:01:36,410
+The language model never writes code.
+
+25
+00:01:36,710 --> 00:01:37,930
+It writes the explanation.
+
+26
+00:01:39,065 --> 00:01:43,565
+Then every column reference is
+resolved before anything ships.
+
+27
+00:01:44,185 --> 00:01:47,085
+23 of 23 against the catalog.
+
+28
+00:01:47,945 --> 00:01:51,565
+One unresolvable reference
+blocks the whole patch.
+
+29
+00:01:52,240 --> 00:01:54,980
+The gate is enforced, not advisory.
+
+30
+00:01:55,680 --> 00:02:01,460
+It opens a real pull request carrying
+the column lineage path as evidence
+
+31
+00:02:01,680 --> 00:02:05,460
+and the reason each unaffected
+model was left alone.
+
+32
+00:02:06,105 --> 00:02:11,225
+Then it writes the repair back, corrected
+column lineage, the renamed column
+
+33
+00:02:11,225 --> 00:02:14,925
+documented, tags, and
+incident raised for review.
+
+34
+00:02:15,545 --> 00:02:19,110
+The next engineer or the next
+agent inherits all of it.
+
+35
+00:02:19,510 --> 00:02:21,930
+Column level lineage for impact.
+
+36
+00:02:22,790 --> 00:02:25,370
+AST rewrites for correctness.
+
+37
+00:02:26,150 --> 00:02:29,850
+The catalog as the source
+of truth on both sides.
