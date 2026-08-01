@@ -79,9 +79,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [stream.events])
 
   const refreshRun = useCallback(async () => {
-    if (!currentRun?.id) return
-    const run = await api.run(currentRun.id)
-    setCurrentRun(run)
+    const runId = currentRun?.id
+    if (!runId) return
+    try {
+      setCurrentRun(await api.run(runId))
+    } catch {
+      // The run registry is in-process: an in-flight run does not survive a backend
+      // restart, so its id 404s forever afterwards. Without this the UI sat on the
+      // placeholder "running" card indefinitely, which reads as a hung agent rather than
+      // a lost run. Surface it as a failure with a reason instead.
+      setCurrentRun((run) =>
+        run && run.id === runId
+          ? {
+              ...run,
+              status: 'failed',
+              failed_stage: run.failed_stage ?? 'detect',
+              error:
+                run.error ??
+                'This run is no longer available from the backend — it was most likely lost when the API restarted mid-run. Start a new run; nothing was left half-applied, because write-back only happens at the end of a successful run.',
+            }
+          : run,
+      )
+    }
   }, [currentRun?.id])
 
   useEffect(() => {
