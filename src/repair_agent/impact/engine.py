@@ -61,16 +61,24 @@ class ImpactEngine:
     def _lineage_with_index_settling(self, drift: DriftEvent) -> tuple[list[Any], list[Any]]:
         """Read column-level and table-level lineage, waiting out graph-index lag.
 
-        DataHub's lineage graph is populated asynchronously. Immediately after a re-seed the
-        column-level query can legitimately return nothing while the table-level query
-        already returns downstreams. Those two answers cannot both be true: if a dataset has
-        downstream tables, at least one of its columns feeds them. Treat the disagreement as
-        "the index has not settled" and retry, rather than reporting an empty blast radius —
-        an empty result here silently means "nothing to repair", which is the single worst
-        failure mode this tool has.
+        DataHub's lineage graph is populated asynchronously, so an empty column-lineage read
+        is ambiguous: it can mean the index has not caught up, or that nothing consumes the
+        column. The lineage ASPECTS resolve the ambiguity, because they are written
+        synchronously and read entity-by-entity rather than through the index.
 
-        Once the two agree (or the budget expires) the answer is returned as-is; a genuinely
-        unused column correctly yields no column hits AND is reported as such.
+        The rule is therefore about agreement, not about emptiness:
+
+        * aspects declare downstream edges the index cannot see -> they DISAGREE, the index
+          is lagging or broken, and we refuse rather than report a short blast radius;
+        * aspects agree there are no edges for this column -> genuinely empty, and we answer
+          honestly with a narrowed result. This covers both a column nobody consumes and a
+          drift a previous run already repaired onto its successor name;
+        * nothing declares any edge out of the dataset and nothing could be corroborated ->
+          the catalog is unseeded or unreadable, so we refuse.
+
+        Refusing on agreement was a real bug: it hard-failed the documented second run, whose
+        downstream models correctly carry healthy edges for the NEW column and none for the
+        old one.
         """
 
         assert drift.old_column is not None
