@@ -295,15 +295,31 @@ async def open_pull_request_impl(context: RunContext) -> PullRequestResult:
     impact = context.run.impact
     if drift is None or impact is None:  # pragma: no cover - enforced above
         raise RuntimeError("PR creation requires drift and impact state.")
+    mode = "dry-run" if context.pr_mode != "live" else "live"
+    if not context.run.patches and impact.stats.get("requires_patch", 0) == 0:
+        # Nothing to patch is a SUCCESS, not a blocked validation. Reusing the blocked state
+        # here made a green run show a red provider error on the Pull Request tab.
+        result = PullRequestResult(
+            mode=mode,
+            url="",
+            branch=f"repair/{drift.id}",
+            title="No changes required — no PR opened",
+            files=[],
+            ok=True,
+            state="no_changes_required",
+        )
+        context.run.pr = result
+        return result
     if not context.run.patches or not all(patch.valid for patch in context.run.patches):
         result = PullRequestResult(
-            mode="dry-run" if context.pr_mode != "live" else "live",
+            mode=mode,
             url="",
             branch=f"repair/{drift.id}",
             title="Validation blocked schema-drift repair",
             files=[patch.file_path for patch in context.run.patches],
             ok=False,
             error="Validation did not pass; fix the failing ReferenceCheck entries before opening a PR.",
+            state="blocked",
         )
         context.run.pr = result
         return result

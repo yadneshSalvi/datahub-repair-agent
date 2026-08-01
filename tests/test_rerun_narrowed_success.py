@@ -121,6 +121,41 @@ def test_second_run_still_refuses_when_index_and_aspects_disagree(case: tuple) -
 
 
 @pytest.mark.parametrize("case", DRIFT_CASES, ids=CASE_IDS)
+def test_zero_patch_run_gets_its_own_pr_state_not_the_blocked_one(case: tuple) -> None:
+    """A no-op repair must not inherit the blocked-validation PR state.
+
+    Regression: reusing `blocked` made a green run render a red "Provider error" badge on
+    the Pull Request tab, which reads as a failure to anyone glancing at it.
+    """
+
+    from repair_agent.models import PullRequestResult
+
+    no_op = PullRequestResult(
+        mode="dry-run",
+        url="",
+        branch="repair/x",
+        title="No changes required — no PR opened",
+        ok=True,
+        state="no_changes_required",
+    )
+    assert no_op.ok is True
+    assert no_op.state != "blocked"
+    assert no_op.error is None
+
+    blocked = PullRequestResult(
+        mode="dry-run",
+        url="",
+        branch="repair/x",
+        title="Validation blocked schema-drift repair",
+        ok=False,
+        error="Validation did not pass",
+        state="blocked",
+    )
+    assert blocked.ok is False
+    assert blocked.state == "blocked"
+
+
+@pytest.mark.parametrize("case", DRIFT_CASES, ids=CASE_IDS)
 def test_zero_patch_rerun_is_a_success_not_a_failure(case: tuple) -> None:
     """A completed impact stage requiring nothing is a narrowed success, not a failed run."""
 

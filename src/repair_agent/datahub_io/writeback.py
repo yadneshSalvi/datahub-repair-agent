@@ -46,12 +46,15 @@ from repair_agent.models import DriftEvent, FglEdge, WritebackAction
 LOGGER = logging.getLogger(__name__)
 
 _DATASET_INCIDENTS_QUERY = """
-query RepairIncidents($urn: String!) {
+query RepairIncidents($urn: String!, $start: Int!, $count: Int!) {
   dataset(urn: $urn) {
-    incidents(start: 0, count: 100) { incidents { urn title } }
+    incidents(start: $start, count: $count) { start count total incidents { urn title } }
   }
 }
 """
+#: Page size for incident reads. A fixed cap is never the right bound on a collection that
+#: grows, so `_dataset_incidents` pages until exhausted rather than trusting one window.
+_INCIDENT_PAGE_SIZE = 50
 _UPDATE_INCIDENT_STATUS = """
 mutation UpdateRepairIncident($urn: String!, $input: IncidentStatusInput!) {
   updateIncidentStatus(urn: $urn, input: $input)
@@ -304,8 +307,13 @@ class DataHubWriteback:
             )
             reused = existed
             stage = "TRIAGE"
+            # Only close the incident when a pull request genuinely exists. In dry-run there
+            # is nothing for a reviewer to act on, so declaring the drift FIXED would overclaim
+            # — and it also hid the incident behind DataHub's default active-only filter, so
+            # the Incidents tab read "No incidents yet" next to a badge count of 1.
             review_reference = _safe_reference(pr_url)
-            if review_reference:
+            shipped = bool(review_reference and review_reference.startswith(("http://", "https://")))
+            if shipped:
                 self._update_incident_status(
                     incident_urn,
                     state="RESOLVED",
@@ -377,9 +385,28 @@ class DataHubWriteback:
         return sorted(set(cleared))
 
     def _dataset_incidents(self, dataset_urn: str) -> list[dict[str, Any]]:
-        response = self.graph.execute_graphql(_DATASET_INCIDENTS_QUERY, variables={"urn": dataset_urn})
-        incidents = (((response.get("dataset") or {}).get("incidents") or {}).get("incidents") or [])
-        return [incident for incident in incidents if isinstance(incident, dict)]
+        """Every incident on a dataset, paged until exhausted.
+
+        A single fixed `count` would silently truncate once enough incidents accumulate, and
+        this feeds the reset's clearing pass — a short read there would leave incidents
+        behind while reporting success, which is the quiet-wrong-answer class of bug.
+        """
+
+        collected: list[dict[str, Any]] = []
+        start = 0
+        while True:
+            response = self.graph.execute_graphql(
+                _DATASET_INCIDENTS_QUERY,
+                variables={"urn": dataset_urn, "start": start, "count": _INCIDENT_PAGE_SIZE},
+            )
+            page = ((response.get("dataset") or {}).get("incidents") or {})
+            incidents = [incident for incident in (page.get("incidents") or []) if isinstance(incident, dict)]
+            collected.extend(incidents)
+            total = page.get("total")
+            start += len(incidents)
+            if not incidents or (isinstance(total, int) and start >= total):
+                break
+        return collected
 
     def _update_incident_status(
         self,

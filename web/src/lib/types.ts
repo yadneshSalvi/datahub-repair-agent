@@ -125,6 +125,8 @@ export interface PullRequestResult {
   files: string[]
   ok: boolean
   error: string | null
+  /** 'no_changes_required' is a success — never style it as a failure. */
+  state: 'opened' | 'no_changes_required' | 'blocked'
 }
 
 export interface WritebackAction {

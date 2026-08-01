@@ -178,13 +178,35 @@ export function PullRequestPage() {
   }
 
   const pr = currentRun.pr
+
+  // A repair with nothing to patch is a success. It has no PR by design, so render its own
+  // state rather than the GitHub card — and never the failure styling used for `blocked`.
+  if (pr.state === 'no_changes_required') {
+    return (
+      <div>
+        <PageHeader
+          eyebrow="Review package"
+          title="Pull Request"
+          detail="The exact artifact a reviewer receives, including lineage and negative impact evidence."
+          actions={<Badge variant="ok"><ShieldCheck className="size-3" />No changes required</Badge>}
+        />
+        <EmptyState
+          icon={ShieldCheck}
+          title="No changes required — no PR opened"
+          detail="DataHub and the catalog agree that no mapped code references the changed column, so this repair had nothing to patch. A previous run may already have repaired it. Opening an empty pull request would be noise, so none was created."
+        />
+      </div>
+    )
+  }
+
+  const blocked = pr.state === 'blocked' || !pr.ok
   return (
     <div>
       <PageHeader
         eyebrow="Review package"
         title="Pull Request"
         detail="The exact artifact a reviewer receives, including lineage and negative impact evidence."
-        actions={<Badge variant={pr.ok ? 'ok' : 'danger'}><ShieldCheck className="size-3" />{pr.ok ? 'Ready for review' : 'Provider error'}</Badge>}
+        actions={<Badge variant={blocked ? 'danger' : 'ok'}><ShieldCheck className="size-3" />{blocked ? 'Blocked by validation' : 'Ready for review'}</Badge>}
       />
 
       <Card className="overflow-hidden border-[#30363d] bg-[#0d1117]">

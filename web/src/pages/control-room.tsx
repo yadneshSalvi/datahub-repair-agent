@@ -348,6 +348,20 @@ export function ControlRoom() {
             </div>
           )}
 
+          {currentRun?.status === 'succeeded' && currentRun.pr?.state === 'no_changes_required' && (
+            <div className="mt-3 rounded-[10px] border border-ok/35 bg-ok/[0.07] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-3.5 shrink-0 text-ok" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ok">No code changes required</span>
+              </div>
+              <p className="m-0 mt-1.5 text-[11px] leading-5 text-text-dim">
+                DataHub and the catalog agree that no mapped code references the changed column,
+                so this repair had nothing to patch and no pull request was opened. A previous run
+                may already have repaired it.
+              </p>
+            </div>
+          )}
+
           {currentRun?.impact && (
             <div className="mt-3 grid grid-cols-4 gap-2">
               <SummaryCard label="Require patch" value={currentRun.impact.stats.requires_patch ?? 0} color="patch" />

@@ -209,6 +209,10 @@ class PullRequestResult(BaseModel):
     files: list[str] = Field(default_factory=list)
     ok: bool = True
     error: str | None = None
+    #: Why there is (or is not) a pull request. ``no_changes_required`` is a SUCCESS — the
+    #: repair had nothing to patch — and must never be rendered with the failure styling
+    #: used for ``blocked``, which means validation rejected a patch.
+    state: Literal["opened", "no_changes_required", "blocked"] = "opened"
 
 
 class WritebackAction(BaseModel):
