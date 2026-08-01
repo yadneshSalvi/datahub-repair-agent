@@ -26,7 +26,7 @@
   {
     "kind": "raise_incident",
     "target_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,shop_prod.raw.orders,PROD)",
-    "detail": "Reused OSS incident urn:li:incident:404d55c6-b6c9-4a46-959d-51260e3fe569 and moved it to FIXED.",
+    "detail": "Raised OSS incident urn:li:incident:e5417e03d2a3e6224360ff87d28c7041 and moved it to FIXED.",
     "datahub_url": "http://localhost:9002/dataset/urn%3Ali%3Adataset%3A%28urn%3Ali%3AdataPlatform%3Asnowflake%2Cshop_prod.raw.orders%2CPROD%29/Incidents",
     "ok": true,
     "error": null

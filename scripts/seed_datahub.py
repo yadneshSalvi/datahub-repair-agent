@@ -636,8 +636,8 @@ def reset_namespace(io: DataHubIO, settings: Settings) -> list[str]:
     """
 
     known_urns = [dataset_urn(definition, settings) for definition in DATASET_DEFINITIONS.values()]
-    incidents = DataHubWriteback(io, settings).resolve_namespace_incidents(known_urns)
-    CONSOLE.print(f"[yellow]Reset:[/] resolved {len(incidents)} incident(s) attached to ShopFlow datasets")
+    incidents = DataHubWriteback(io, settings).clear_namespace_incidents(known_urns)
+    CONSOLE.print(f"[yellow]Reset:[/] cleared {len(incidents)} incident(s) attached to ShopFlow datasets")
     candidates = dict.fromkeys(
         [*io.list_namespace_datasets(settings.namespace_prefix, skip_cache=True), *known_urns]
     )

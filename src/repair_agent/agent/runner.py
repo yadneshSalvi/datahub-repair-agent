@@ -129,18 +129,41 @@ async def run_repair(
             await _run_with_model_fallback(context)
             await _complete_missing_work(context)
 
-        valid = bool(active_run.patches) and all(patch.valid for patch in active_run.patches)
-        active_run.status = "succeeded" if valid and active_run.pr is not None and active_run.pr.ok else "failed"
+        # Zero patches is a legitimate outcome when the impact stage COMPLETED and found
+        # nothing requiring a change — a column nobody consumes, or a drift a previous run
+        # already repaired. The impact engine raises LineageUnavailable when it cannot tell,
+        # so reaching here with a report in hand means the emptiness is a real answer. Only
+        # an absent report makes zero patches a failure.
+        nothing_to_repair = (
+            not active_run.patches
+            and active_run.impact is not None
+            and active_run.impact.stats.get("requires_patch", 0) == 0
+        )
+        valid = all(patch.valid for patch in active_run.patches) and (
+            bool(active_run.patches) or nothing_to_repair
+        )
+        pr_ok = nothing_to_repair or (active_run.pr is not None and active_run.pr.ok)
+        active_run.status = "succeeded" if valid and pr_ok else "failed"
+        if nothing_to_repair:
+            context.emit(
+                phase="codegen",
+                title="No code changes required",
+                detail=(
+                    "DataHub and the catalog agree that no mapped code references the changed "
+                    "column, so this repair has nothing to patch. A previous run may already "
+                    "have repaired it."
+                ),
+            )
         if active_run.status == "failed" and not active_run.error:
-            # A run that reached the end without an exception can still be a failure — no
-            # patches, an invalid patch, or a blocked PR. Name the reason explicitly so the
-            # UI can never present it as a quiet success.
+            # A run that reached the end without an exception can still be a failure — an
+            # impact stage that never produced a report, an invalid patch, or a blocked PR.
+            # Name the reason explicitly so the UI can never present it as a quiet success.
             if not active_run.patches:
-                active_run.failed_stage = "codegen"
+                active_run.failed_stage = "impact" if active_run.impact is None else "codegen"
                 active_run.error = (
-                    "No patches were generated. A drift was active, so an empty repair set means "
-                    "the impact analysis or codegen stage did not complete — not that the code is "
-                    "already correct."
+                    "No patches were generated and no impact report was produced, so the blast "
+                    "radius was never established. This is not the same as the code already "
+                    "being correct."
                 )
             elif not valid:
                 blocked = [patch.file_path for patch in active_run.patches if not patch.valid]
@@ -214,11 +237,16 @@ def _completed_stages(run: RepairRun) -> list[str]:
         done.append("detect")
     if run.impact is not None:
         done.append("impact")
-    if run.patches:
+    # A completed impact stage that found nothing to patch means codegen and validation ran
+    # and legitimately had no work; they are done, not skipped.
+    nothing_to_repair = (
+        not run.patches and run.impact is not None and run.impact.stats.get("requires_patch", 0) == 0
+    )
+    if run.patches or nothing_to_repair:
         done.append("codegen")
-    if run.patches and all(patch.valid for patch in run.patches):
+    if nothing_to_repair or (run.patches and all(patch.valid for patch in run.patches)):
         done.append("validate")
-    if run.pr is not None and run.pr.ok:
+    if nothing_to_repair or (run.pr is not None and run.pr.ok):
         done.append("pr")
     if run.writeback and all(action.ok for action in run.writeback):
         done.append("writeback")

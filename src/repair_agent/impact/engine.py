@@ -76,15 +76,16 @@ class ImpactEngine:
         assert drift.old_column is not None
         expected = self._aspect_declared_downstreams(drift)
         if not expected and not self._aspect_declares_any_edge_from(drift.dataset_urn):
-            # Nothing anywhere declares an edge out of the drifted dataset. On a seeded
-            # ShopFlow catalog that is impossible, so the catalog is unseeded or was wiped
-            # mid-run. Fail here rather than let every asset fall through to SKIPPED.
+            # Nothing anywhere declares an edge out of the drifted dataset, and we could not
+            # read otherwise. On a seeded ShopFlow catalog that is impossible, so the catalog
+            # is unseeded, was wiped mid-run, or its aspects are unreadable. Fail here rather
+            # than let every asset fall through to SKIPPED.
             raise LineageUnavailable(
                 f"No dataset in the catalog declares any column-level lineage from "
-                f"{drift.dataset_name}. The ShopFlow catalog looks unseeded or was modified "
-                "mid-run, so the blast radius cannot be computed. Run `make seed verify` and "
-                "retry — reporting an empty impact set here would wrongly imply nothing is "
-                "affected."
+                f"{drift.dataset_name}, and its lineage aspects could not be corroborated. The "
+                "ShopFlow catalog looks unseeded or was modified mid-run, so the blast radius "
+                "cannot be computed. Run `make seed verify` and retry — reporting an empty "
+                "impact set here would wrongly imply nothing is affected."
             )
         column_hits: list[Any] = []
         table_hits: list[Any] = []
@@ -119,14 +120,35 @@ class ImpactEngine:
                 "index to settle. Refusing to report an incomplete blast radius — re-run once "
                 "DataHub has caught up."
             )
-        if not column_hits and table_hits:
-            raise LineageUnavailable(
-                f"DataHub reports {len(table_hits)} downstream dataset(s) of "
-                f"{drift.dataset_name} but no column-level lineage at all for "
-                f"`{drift.old_column}`. Those answers cannot both be true, so the column-lineage "
-                "index is unavailable rather than genuinely empty. Refusing to report that "
-                "nothing is affected."
+        if not column_hits:
+            # The index reports no consumers of the drifted column and the aspect store agrees
+            # (``expected`` is empty, and it was readable — otherwise we raised above). Aspects
+            # and index AGREEING is a genuine answer, not a fault: either the column was never
+            # consumed, or a previous run already repaired its consumers onto the new name.
+            # Refusing here is what broke the documented re-run, where stg_orders correctly has
+            # healthy edges for `order_created_at` and none for `order_placed_at`.
+            successor = drift.new_column
+            repaired_by = (
+                self._aspect_declared_downstreams(drift, successor)
+                if successor and successor != drift.old_column
+                else set()
             )
+            if repaired_by:
+                LOGGER.info(
+                    "No consumers remain for %s.%s, but %d dataset(s) now consume `%s` — this "
+                    "drift was already repaired, so there is less to do.",
+                    drift.dataset_name,
+                    drift.old_column,
+                    len(repaired_by),
+                    successor,
+                )
+            else:
+                LOGGER.info(
+                    "No dataset consumes %s.%s; the catalog is readable and agrees, so the "
+                    "blast radius is genuinely empty.",
+                    drift.dataset_name,
+                    drift.old_column,
+                )
         return column_hits, table_hits
 
     def _aspect_declares_any_edge_from(self, dataset_urn: str) -> bool:
@@ -143,16 +165,17 @@ class ImpactEngine:
                     return True
         return False
 
-    def _aspect_declared_downstreams(self, drift: DriftEvent) -> set[str]:
-        """Datasets whose own lineage ASPECTS declare a direct edge from the drifted column.
+    def _aspect_declared_downstreams(self, drift: DriftEvent, column: str | None = None) -> set[str]:
+        """Datasets whose lineage ASPECTS declare a path from ``column`` on the drifted dataset.
 
-        Read entity-by-entity over GraphQL rather than through lineage search, so it does not
-        depend on the asynchronously-built graph index. This is the oracle that tells the
-        settle loop whether an empty search result is real or merely early: aspects are
-        written synchronously by the seed, the index catches up seconds later.
+        Defaults to the drifted (old) column. Read entity-by-entity over GraphQL rather than
+        through lineage search, so it does not depend on the asynchronously-built graph index.
+        This is the oracle that tells the settle loop whether an empty search result is real or
+        merely early: aspects are written synchronously, the index catches up seconds later.
         """
 
-        assert drift.old_column is not None
+        source_column = column if column is not None else drift.old_column
+        assert source_column is not None
         edges: list[FglEdge] = []
         for urn in self.code_map["datasets"]:
             try:
@@ -166,7 +189,7 @@ class ImpactEngine:
         # Walk the aspect graph transitively: a hop-2 model is indexed slightly later than a
         # hop-1 model, so a direct-edge-only oracle stops waiting too early and reports a
         # blast radius that is short by exactly the deeper models.
-        frontier = {(drift.dataset_urn.lower(), drift.old_column.lower())}
+        frontier = {(drift.dataset_urn.lower(), source_column.lower())}
         seen: set[tuple[str, str]] = set()
         declared: set[str] = set()
         while frontier:

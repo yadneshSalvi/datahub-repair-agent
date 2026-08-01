@@ -75,13 +75,33 @@ def _empty_impact() -> ImpactReport:
 class TestCompletedStages:
     """Stage ticks come from real artifacts, never from how far the run got."""
 
-    def test_impact_without_patches_does_not_tick_codegen_validate_pr(self) -> None:
-        run = RepairRun(id="r", status="failed", drift=_drift(), impact=_empty_impact())
+    def test_impact_never_produced_ticks_only_detect(self) -> None:
+        """No impact report means the blast radius was never established."""
+
+        run = RepairRun(id="r", status="failed", drift=_drift(), impact=None)
         stages = _completed_stages(run)
-        assert stages == ["detect", "impact"]
+        assert stages == ["detect"]
         # This is the exact regression: the failed QA run showed green checks on all three.
         for never in ("codegen", "validate", "pr", "writeback"):
             assert never not in stages
+
+    def test_work_required_but_no_patches_does_not_tick_codegen(self) -> None:
+        """Impact says 3 files need patching but none were produced — codegen really failed."""
+
+        impact = _empty_impact()
+        impact.stats["requires_patch"] = 3
+        run = RepairRun(id="r", status="failed", drift=_drift(), impact=impact)
+        stages = _completed_stages(run)
+        assert stages == ["detect", "impact"]
+        for never in ("codegen", "validate", "pr"):
+            assert never not in stages
+
+    def test_nothing_to_repair_ticks_through_pr(self) -> None:
+        """Zero patches with zero required is a real, complete answer, not a half-run."""
+
+        run = RepairRun(id="r", status="succeeded", drift=_drift(), impact=_empty_impact())
+        stages = _completed_stages(run)
+        assert stages == ["detect", "impact", "codegen", "validate", "pr"]
 
     def test_invalid_patch_ticks_codegen_but_not_validate(self) -> None:
         run = RepairRun(id="r", status="failed", drift=_drift(), impact=_empty_impact(), patches=[_patch(valid=False)])
@@ -113,7 +133,7 @@ class TestLineageUnavailable:
         engine.LINEAGE_SETTLE_ATTEMPTS = 1
         engine.LINEAGE_SETTLE_SECONDS = 0.0
         downstream = "urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)"
-        engine._aspect_declared_downstreams = lambda drift: {downstream}  # type: ignore[method-assign]
+        engine._aspect_declared_downstreams = lambda drift, column=None: {downstream}  # type: ignore[method-assign]
         engine.datahub_io = type(
             "IO", (), {"column_impact": lambda *a, **k: [], "table_downstreams": lambda *a, **k: []}
         )()
@@ -130,7 +150,7 @@ class TestLineageUnavailable:
         engine = ImpactEngine.__new__(ImpactEngine)
         engine.LINEAGE_SETTLE_ATTEMPTS = 1
         engine.LINEAGE_SETTLE_SECONDS = 0.0
-        engine._aspect_declared_downstreams = lambda drift: set()  # type: ignore[method-assign]
+        engine._aspect_declared_downstreams = lambda drift, column=None: set()  # type: ignore[method-assign]
         engine._aspect_declares_any_edge_from = lambda urn: False  # type: ignore[method-assign]
         engine.datahub_io = type(
             "IO", (), {"column_impact": lambda *a, **k: [], "table_downstreams": lambda *a, **k: []}
@@ -140,6 +160,43 @@ class TestLineageUnavailable:
             engine._lineage_with_index_settling(_drift())
         assert "unseeded" in str(excinfo.value)
 
+    def test_repaired_away_column_returns_empty_instead_of_refusing(self) -> None:
+        """The documented re-run must succeed with less to do, not hard-fail.
+
+        Regression: after a successful repair the downstream models correctly carry healthy
+        edges for the NEW column and none for the old one. The guard read that as
+        "downstreams exist but the column has no lineage" and refused — but aspects and index
+        were AGREEING. Refusal is only correct when they disagree.
+        """
+
+        from repair_agent.impact.engine import ImpactEngine
+
+        engine = ImpactEngine.__new__(ImpactEngine)
+        engine.LINEAGE_SETTLE_ATTEMPTS = 1
+        engine.LINEAGE_SETTLE_SECONDS = 0.0
+        successor_consumers = {"urn:li:dataset:(urn:li:dataPlatform:dbt,shop_prod.analytics.stg_orders,PROD)"}
+
+        def declared(drift: DriftEvent, column: str | None = None) -> set[str]:
+            # Nothing consumes the old name any more; the new name is consumed normally.
+            return successor_consumers if column == drift.new_column else set()
+
+        engine._aspect_declared_downstreams = declared  # type: ignore[method-assign]
+        engine._aspect_declares_any_edge_from = lambda urn: True  # type: ignore[method-assign]
+        engine.datahub_io = type(
+            "IO",
+            (),
+            {
+                "column_impact": lambda *a, **k: [],
+                # Table-level downstreams still exist — this is exactly the shape that used
+                # to trip the old "those answers cannot both be true" branch.
+                "table_downstreams": lambda *a, **k: [object()],
+            },
+        )()
+
+        column_hits, table_hits = engine._lineage_with_index_settling(_drift())
+        assert column_hits == []
+        assert len(table_hits) == 1
+
     def test_genuinely_unused_column_is_allowed_to_return_empty(self) -> None:
         """A column with no declared downstreams legitimately has no blast radius."""
 
@@ -148,7 +205,7 @@ class TestLineageUnavailable:
         engine = ImpactEngine.__new__(ImpactEngine)
         engine.LINEAGE_SETTLE_ATTEMPTS = 1
         engine.LINEAGE_SETTLE_SECONDS = 0.0
-        engine._aspect_declared_downstreams = lambda drift: set()  # type: ignore[method-assign]
+        engine._aspect_declared_downstreams = lambda drift, column=None: set()  # type: ignore[method-assign]
         engine._aspect_declares_any_edge_from = lambda urn: True  # type: ignore[method-assign]
         engine.datahub_io = type(
             "IO", (), {"column_impact": lambda *a, **k: [], "table_downstreams": lambda *a, **k: []}

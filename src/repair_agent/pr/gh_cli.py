@@ -119,23 +119,42 @@ class GhCliPRProvider:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".md", encoding="utf-8") as body_file:
                 body_file.write(request.body_markdown)
                 body_file.flush()
-                created = self._run(
-                    [
-                        "gh",
-                        "pr",
-                        "create",
-                        "--base",
-                        request.base,
-                        "--head",
-                        request.branch,
-                        "--title",
-                        request.title,
-                        "--body-file",
-                        body_file.name,
-                    ],
+                # An open PR for this branch already exists whenever a repair is re-run. Update
+                # it in place so the live artifact tracks the current generator instead of
+                # erroring out and leaving a stale body a reviewer would still be reading.
+                existing = subprocess.run(
+                    ["gh", "pr", "view", request.branch, "--json", "url", "--jq", ".url"],
                     cwd=self.repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
                 )
-            url = next((line.strip() for line in created.stdout.splitlines() if line.strip().startswith("http")), "")
+                existing_url = existing.stdout.strip() if existing.returncode == 0 else ""
+                if existing_url:
+                    self._run(
+                        [
+                            "gh", "pr", "edit", request.branch,
+                            "--title", request.title,
+                            "--body-file", body_file.name,
+                        ],
+                        cwd=self.repo_root,
+                    )
+                    url = existing_url
+                else:
+                    created = self._run(
+                        [
+                            "gh", "pr", "create",
+                            "--base", request.base,
+                            "--head", request.branch,
+                            "--title", request.title,
+                            "--body-file", body_file.name,
+                        ],
+                        cwd=self.repo_root,
+                    )
+                    url = next(
+                        (line.strip() for line in created.stdout.splitlines() if line.strip().startswith("http")),
+                        "",
+                    )
             if not url:
                 raise RuntimeError("`gh pr create` succeeded but returned no PR URL; inspect the GitHub repository.")
             number_text = url.rstrip("/").rsplit("/", 1)[-1]

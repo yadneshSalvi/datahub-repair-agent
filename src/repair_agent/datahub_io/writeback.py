@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from datetime import datetime
 from pathlib import PurePosixPath
@@ -41,6 +42,8 @@ from repair_agent.config import Settings, get_settings
 from repair_agent.datahub_io.client import DataHubIO
 from repair_agent.datahub_io.links import datahub_entity_url
 from repair_agent.models import DriftEvent, FglEdge, WritebackAction
+
+LOGGER = logging.getLogger(__name__)
 
 _DATASET_INCIDENTS_QUERY = """
 query RepairIncidents($urn: String!) {
@@ -327,26 +330,51 @@ class DataHubWriteback:
                 suffix="/Incidents",
             )
 
-    def resolve_namespace_incidents(self, dataset_urns: list[str]) -> list[str]:
-        """Resolve incidents attached to explicitly enumerated in-namespace datasets."""
+    def _memory_link(self, reference: str | None, description: str) -> tuple[str, str]:
+        """Always produce a real, resolvable URL for an institutional-memory element.
 
-        resolved: list[str] = []
+        `InstitutionalMemory.url` is rendered as a hyperlink by DataHub, so a bare path like
+        `.repair-agent/pr_bodies/x.md` produced a link that 404s against the DataHub host. In
+        dry-run mode the artifact is local and genuinely has no public URL, so link the
+        repository and say so in the description rather than inventing a blob URL for a file
+        that is gitignored and therefore not published.
+        """
+
+        resolved = _safe_reference(reference)
+        if resolved and resolved.startswith(("http://", "https://")):
+            return resolved, description
+        repo_url = f"https://github.com/{self.settings.github_repo}"
+        where = (
+            f" (dry run — generated locally at `{resolved}`, not published)"
+            if resolved
+            else " (dry run — not published)"
+        )
+        return repo_url, f"{description}{where}"
+
+    def clear_namespace_incidents(self, dataset_urns: list[str]) -> list[str]:
+        """Delete incidents attached to explicitly enumerated in-namespace datasets.
+
+        A demo reset must return DataHub to a pristine state. Merely resolving them left the
+        Incidents tab showing stale history from previous runs, so the reset's own summary
+        line did not match what a judge saw in the UI.
+        """
+
+        cleared: list[str] = []
         for dataset_urn in sorted(set(dataset_urns)):
             name = DatasetUrn.from_string(dataset_urn).name
             if not name.startswith(self.settings.namespace_prefix):
-                raise ValueError(f"Refusing to resolve incidents outside {self.settings.namespace_prefix}: {dataset_urn}")
+                raise ValueError(f"Refusing to clear incidents outside {self.settings.namespace_prefix}: {dataset_urn}")
             for incident in self._dataset_incidents(dataset_urn):
                 incident_urn = incident.get("urn")
                 if not isinstance(incident_urn, str):
                     continue
-                self._update_incident_status(
-                    incident_urn,
-                    state="RESOLVED",
-                    stage="FIXED",
-                    message="Resolved by the ShopFlow demo namespace reset.",
-                )
-                resolved.append(incident_urn)
-        return sorted(set(resolved))
+                try:
+                    self.graph.delete_entity(urn=incident_urn, hard=True)
+                except Exception as exc:  # pragma: no cover - transport-specific
+                    LOGGER.warning("Could not delete incident %s: %s", incident_urn, exc)
+                    continue
+                cleared.append(incident_urn)
+        return sorted(set(cleared))
 
     def _dataset_incidents(self, dataset_urn: str) -> list[dict[str, Any]]:
         response = self.graph.execute_graphql(_DATASET_INCIDENTS_QUERY, variables={"urn": dataset_urn})
@@ -385,12 +413,11 @@ class DataHubWriteback:
                 actor=make_user_urn("datahub-repair-agent"),
             )
             additions = tuple(
-                (url, description)
+                self._memory_link(reference, description)
                 for reference, description in (
                     (pr_url, "Schema-drift repair pull request"),
                     (migration_doc_url, "Schema-drift migration and rollback guide"),
                 )
-                if (url := _safe_reference(reference)) is not None
             )
             known_urls = {element.url for element in elements}
             for url, description in additions:

@@ -192,6 +192,16 @@ examples/drop_marketing_opt_in/     # DROP    — a deprecation path, never a si
   `demo-warehouse/code_map.yml`).
 - `get_dataset_assertions`, semantic search, and usage-based sorting are DataHub Cloud only;
   nothing here depends on them.
+- **The agent occasionally skips a stage, and the pipeline covers for it.** On a minority of
+  runs the language model returns without calling every repair tool. The shared pipeline
+  detects the omission, completes the stage deterministically, and **says so in the run
+  timeline** rather than quietly papering over it — which is also why the generated code is
+  identical whether the model participates or not. The deterministic path (`--no-llm`) has no
+  such variance.
+- **Re-running a repair without resetting finds less to do**, because the previous run wrote
+  the corrected lineage back to DataHub. That is the agent working. When the catalog and the
+  lineage index disagree — as opposed to genuinely having nothing left to repair — the run
+  refuses to report an empty blast radius and fails with the reason.
 
 ## Development
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
+from functools import wraps
+from typing import TypeVar, cast
 
 from repair_agent.codegen.generator import generate_patches
 from repair_agent.config import Settings, get_settings
@@ -17,6 +19,30 @@ from repair_agent.validate.validator import validate_patches
 
 LOGGER = logging.getLogger(__name__)
 EventCallback = Callable[[RunEvent], None]
+StageFn = TypeVar("StageFn", bound=Callable[..., None])
+
+
+def stage(name: str) -> Callable[[StageFn], StageFn]:
+    """Stamp ``run.failed_stage`` with the stage an exception actually escaped from.
+
+    Attribution used to be inferred after the fact from run artifacts, which gave two
+    different answers ("impact" vs "done") for the same impact-stage failure depending on
+    what had been populated. The UI greys stages off this field, so a wrong value blames the
+    wrong step. Recording it at the raise site makes it deterministic.
+    """
+
+    def decorate(function: StageFn) -> StageFn:
+        @wraps(function)
+        def wrapper(run: RepairRun, *args: object, **kwargs: object) -> None:
+            try:
+                return function(run, *args, **kwargs)
+            except Exception:
+                run.failed_stage = name
+                raise
+
+        return cast(StageFn, wrapper)
+
+    return decorate
 
 
 def emit_run_event(
@@ -45,6 +71,7 @@ def emit_run_event(
     return event
 
 
+@stage("detect")
 def detect_stage(
     run: RepairRun,
     drift_id: str,
@@ -83,6 +110,7 @@ def detect_stage(
     )
 
 
+@stage("impact")
 def impact_stage(
     run: RepairRun,
     datahub_io: DataHubIO,
@@ -115,6 +143,7 @@ def impact_stage(
     )
 
 
+@stage("codegen")
 def codegen_stage(
     run: RepairRun,
     settings: Settings,
@@ -142,6 +171,7 @@ def codegen_stage(
     )
 
 
+@stage("validate")
 def validate_stage(
     run: RepairRun,
     datahub_io: DataHubIO,
