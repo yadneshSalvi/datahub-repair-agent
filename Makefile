@@ -77,15 +77,32 @@ demo: preflight
 	  if [ $$status -eq 130 ] || [ $$status -eq 0 ]; then exit 0; fi; \
 	  exit $$status
 
-# Only ever kills a PID that is still the uvicorn we started. A stale pidfile can otherwise
-# name a recycled PID belonging to something else entirely.
+# Stops the process ACTUALLY listening on API_PORT, not just the pidfile's PID.
+#
+# The pidfile records the `uv run` wrapper. Killing the wrapper leaves the real uvicorn
+# child alive and re-parented to init, still holding the port — so `make stop` reported
+# success while the server kept running, and the next `make demo` failed to bind. That
+# also let two people each believe they owned the box.
+#
+# Three independent checks before any kill, so this can never match another project's
+# server: it must be listening on OUR port, be a uvicorn process, AND be running OUR app
+# module. Anything else is reported and left alone.
 stop:
+	@pids=$$(lsof -nP -iTCP:$(API_PORT) -sTCP:LISTEN -t 2>/dev/null); \
+	 killed=""; \
+	 for pid in $$pids; do \
+	   cmd=$$(ps -p $$pid -o command= 2>/dev/null); \
+	   case "$$cmd" in \
+	     *uvicorn*repair_agent.api.app*) kill $$pid 2>/dev/null && killed="$$killed $$pid";; \
+	     *) echo "Port $(API_PORT) is held by pid $$pid, which is not the repair-agent API. Leaving it alone.";; \
+	   esac; \
+	 done; \
+	 if [ -n "$$killed" ]; then echo "Stopped the repair-agent API (pid$$killed)."; \
+	 elif [ -z "$$pids" ]; then echo "Nothing is listening on port $(API_PORT)."; fi
 	@if [ -f .repair-agent/api.pid ]; then \
 	  pid=$$(cat .repair-agent/api.pid); \
-	  if [ -n "$$pid" ] && ps -p $$pid -o command= 2>/dev/null | grep -q uvicorn; then \
-	    kill $$pid 2>/dev/null || true; echo "Stopped the repair-agent API (pid $$pid)."; \
-	  else \
-	    echo "No running repair-agent API for pid $$pid; clearing stale pidfile."; \
+	  if [ -n "$$pid" ] && ps -p $$pid -o command= 2>/dev/null | grep -q "uvicorn.*repair_agent.api.app"; then \
+	    kill $$pid 2>/dev/null || true; echo "Stopped the repair-agent API wrapper (pid $$pid)."; \
 	  fi; \
 	  rm -f .repair-agent/api.pid; \
 	else \

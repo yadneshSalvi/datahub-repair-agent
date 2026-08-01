@@ -196,6 +196,27 @@ examples/drop_marketing_opt_in/     # DROP    — a deprecation path, never a si
   `demo-warehouse/code_map.yml`).
 - `get_dataset_assertions`, semantic search, and usage-based sorting are DataHub Cloud only;
   nothing here depends on them.
+
+### One guarantee you can check in ten seconds
+
+**A repair structurally cannot redefine a dataset.** The agent writes *about* your tables —
+documentation, tags, lineage, incidents — and never rewrites what they *are*. Schema definition
+lives only in `scripts/seed_datahub.py` and `scripts/simulate_drift.py`, never in the repair
+path, so no run can restore a dropped column or overwrite a renamed one behind your back.
+
+Verify it yourself from a clone:
+
+```bash
+# -w matters: without it the pattern also matches EditableSchemaMetadataClass, which is the
+# documentation layer and is perfectly fine for a repair to write.
+grep -rnw "SchemaMetadataClass" src/       # 0 — runtime code never emits a schema
+grep -rnw "SchemaMetadataClass" scripts/   # 4 — only the seed and the drift simulator
+grep -n   "SchemaMetadata" src/repair_agent/datahub_io/writeback.py
+                                           # only EditableSchemaMetadataClass
+```
+
+`tests/test_repair_never_rewrites_source_schema.py` enforces both, so the guarantee cannot
+rot.
 - **The agent occasionally skips a stage, and the pipeline covers for it.** On a minority of
   runs the language model returns without calling every repair tool. The shared pipeline
   detects the omission, completes the stage deterministically, and **says so in the run
