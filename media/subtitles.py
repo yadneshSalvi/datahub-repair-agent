@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import ssl
+import subprocess
 import sys
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -27,7 +28,7 @@ AUDIO = MEDIA / "build" / "audio.wav"
 SRT = MEDIA / "schema-drift-auto-repair-agent.srt"
 ENDPOINT = "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true"
 
-MAX_CHARS = 74  # two comfortable caption lines at 1280px
+MAX_CHARS = 74  # two comfortable caption lines; wrap() splits near the middle
 MAX_SECONDS = 5.5
 
 
@@ -105,6 +106,21 @@ def main() -> None:
         lines.append(f"{index}\n{stamp(start)} --> {stamp(max(end, start + 0.6))}\n{wrap(text)}\n")
     SRT.write_text("\n".join(lines), encoding="utf-8")
     print(f"wrote {SRT.name}: {len(cues)} cues, last ends {stamp(cues[-1][1])}")
+
+    # Captions timed against a different audio file than the one that was muxed would drift
+    # silently, and nobody reads an SRT to check. Compare against the shipped video instead.
+    video = MEDIA / "schema-drift-auto-repair-agent.mp4"
+    if video.is_file():
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", str(video)],
+            capture_output=True, text=True, check=True,
+        )
+        duration = float(probe.stdout.strip())
+        overshoot = cues[-1][1] - duration
+        print(f"video is {duration:.1f}s; last cue ends {overshoot:+.1f}s relative to it")
+        if overshoot > 0.5:
+            print("WARNING: captions run past the end of the video — regenerate after assemble.sh.")
 
 
 if __name__ == "__main__":

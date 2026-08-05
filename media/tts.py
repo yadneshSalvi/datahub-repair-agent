@@ -31,10 +31,18 @@ VOICE = os.environ.get("TTS_VOICE", "Charon")
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 
 # Delivery direction. Gemini TTS honours a natural-language style prompt.
+#
+# Pace is load-bearing, not taste. The v1 prompt ("measured pace", "slight pause at
+# sentence ends") produced 121 wpm, which fit only ~300 words into the 3:00 Devpost
+# limit — too few to explain DataHub to a viewer who has never heard of it, and slow
+# enough that the video felt like dead air. Measured alternatives on identical text:
+# v1 prompt 136 wpm, this prompt 176 wpm, an explicitly "brisk/energetic" prompt 223 wpm
+# (far too fast to follow). 176 wpm buys ~500 words inside the limit while staying clear.
 STYLE = (
-    "Read as a confident, calm technical narrator for a product demo video. "
-    "Measured pace, clear consonants, no salesy energy. Slight pause at sentence ends. "
-    "Say the text exactly as written:\n\n"
+    "Narrate this technical product demo in a clear, engaging documentary style. "
+    "Keep a steady forward momentum — slightly quicker than conversational, the pace of a "
+    "presenter who is comfortable but has ground to cover. Crisp consonants, warm and "
+    "confident, minimal pausing between sentences. Say the text exactly as written:\n\n"
 )
 
 
@@ -60,6 +68,11 @@ def synthesize(text: str, key: str) -> bytes:
     return base64.b64decode(part["data"])
 
 
+def _wav_seconds(path: Path) -> float:
+    with wave.open(str(path), "rb") as handle:
+        return handle.getnframes() / handle.getframerate()
+
+
 def write_wav(path: Path, pcm: bytes, rate: int = 24000) -> float:
     """Gemini returns raw signed 16-bit little-endian mono PCM; wrap it in a WAV header."""
 
@@ -78,10 +91,21 @@ def main() -> None:
     RAW.mkdir(parents=True, exist_ok=True)
     paragraphs = [p.strip() for p in (MEDIA / "narration.txt").read_text().split("\n\n") if p.strip()]
 
+    # `tts.py 9 12 13` re-cuts only those segments. Verification failures are usually
+    # confined to one phrase, and regenerating every segment to fix one both costs a few
+    # minutes and re-rolls the delivery of segments that were already approved.
+    only = {int(argument) for argument in sys.argv[1:] if argument.isdigit()}
+
     manifest = []
     total = 0.0
     for index, text in enumerate(paragraphs, start=1):
         out = RAW / f"seg_{index:02d}.wav"
+        if only and index not in only and out.is_file():
+            seconds = _wav_seconds(out)
+            total += seconds
+            manifest.append({"index": index, "file": out.name, "seconds": round(seconds, 2), "text": text})
+            print(f"  seg {index:02d}  {seconds:6.2f}s  (kept)", flush=True)
+            continue
         pcm = synthesize(text, key)
         seconds = write_wav(out, pcm)
         total += seconds

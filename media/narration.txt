@@ -1,19 +1,25 @@
-An upstream team renames a column. Nothing errors. Downstream models keep running and quietly produce wrong numbers, and you find out days later from someone looking at a bad dashboard.
+Every company's data lives in hundreds of tables, wired together by pipelines nobody fully remembers. DataHub is an open source catalog that keeps that map: every table, every column, every pipeline.
 
-So let's break it, the way it actually happens. In DataHub, order placed at becomes order created at, in the real catalog. Nobody told the downstream teams.
+Here is the failure it cannot fix on its own. Someone upstream renames one column. Nothing crashes. The pipelines below keep running, quietly producing wrong numbers, and nobody notices for days.
 
-The agent reads DataHub through the M C P server. You can watch the calls land: search, schema fields, lineage on the changed column, captured queries. This is not grep. Every conclusion is grounded in the catalog.
+So let's break it on purpose. One change to the live catalog: in the orders table, order placed at becomes order created at. Now the catalog shows drift, and nobody downstream was told.
 
-Column-level lineage gives three answers, not two. Three files genuinely reference the changed column and need a patch. Two marts sit in the blast radius but read an alias created upstream, so they need no change at all. And seven models are correctly skipped.
+Here is the detector's evidence. On the left, the columns DataHub had on record. On the right, what is in the warehouse now. Every row matches but one.
 
-Click a skipped model and it tells you why: exactly which columns it does consume, and that none of them sit on the changed column's path. Anything can list everything downstream. Knowing what genuinely breaks is the hard part.
+Now the agent goes to work. Watch the timeline on the right. Those violet chips are its live questions to DataHub, asked through M C P, the connector that lets an agent query a catalog directly. Search the catalog. List this table's columns. Trace this column downstream. Every answer comes from the catalog, not a text search.
 
-Patches are surgical. Sqlglot locates the references, and only the changed tokens move. The language model never writes code. It writes the explanation.
+Here is the result, and it is the heart of this project. Column level lineage maps exactly which downstream code reads this one column, not merely which tables connect.
 
-Then every column reference is resolved before anything ships. Twenty-three of twenty-three, against the catalog. One unresolvable reference blocks the whole patch. The gate is enforced, not advisory.
+So you get three answers, not two. Three files, in amber, genuinely read the changed column and need fixing. Two, in blue, read a renamed copy made upstream, so they need nothing. Seven, in grey, are correctly left alone.
 
-It opens a real pull request, carrying the column lineage path as evidence and the reason each unaffected model was left alone.
+Click one of the seven and it shows its work. It really does sit downstream, but the columns it reads are order I D, quantity and unit price. None of them is the one that changed. Anyone can list everything downstream. Knowing what genuinely breaks is the hard part.
 
-Then it writes the repair back: corrected column lineage, the renamed column documented, tags, an incident raised for review. The next engineer, or the next agent, inherits all of it.
+The fixes are surgical. Here's the same file, before and after. Only the tokens that changed have moved. The rewrite is done by SQL Glot, a parser that edits the syntax tree directly. The model never writes code. It writes the explanation.
 
-Column-level lineage for impact. A S T rewrites for correctness. The catalog as the source of truth on both sides.
+And nothing ships until every column reference checks out. Twenty three of twenty three resolved, and it shows where each answer came from: live DataHub schemas, the repaired schema, or the query itself. One unresolved reference blocks the whole patch.
+
+Then it opens a real pull request, a proposed code change sent to a person to review, carrying the lineage path from the changed column to every file it touched.
+
+Finally it writes the repair back into DataHub, so the catalog is true again: lineage corrected, the column documented, and an incident logged for sign off. The next engineer, or the next agent, inherits it.
+
+Column level lineage to pinpoint what genuinely broke. Syntax tree edits so the fix is exact. And the catalog as the source of truth at both ends.

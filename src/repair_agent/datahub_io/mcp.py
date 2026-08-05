@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +23,7 @@ def build_datahub_mcp_server(settings: Settings | None = None) -> Any:
         "DATAHUB_TELEMETRY_ENABLED": "false",
         "UV_TOOL_DIR": os.environ.get(
             "UV_TOOL_DIR",
-            str(Path(tempfile.gettempdir()) / "repair-agent-uv-tools"),
+            str(Path.home() / ".cache" / "uv-repair-agent" / "tools"),
         ),
     }
     if os.environ.get("UV_CACHE_DIR"):

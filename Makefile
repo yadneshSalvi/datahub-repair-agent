@@ -1,5 +1,7 @@
-UV_CACHE_DIR ?= /private/tmp/uv-cache
-RUN := env -u VIRTUAL_ENV UV_CACHE_DIR=$(UV_CACHE_DIR) uv run
+UV_CACHE_DIR ?= $(HOME)/.cache/uv-repair-agent
+UV_TOOL_DIR ?= $(HOME)/.cache/uv-repair-agent/tools
+export UV_TOOL_DIR
+RUN := env -u VIRTUAL_ENV UV_CACHE_DIR=$(UV_CACHE_DIR) UV_TOOL_DIR=$(UV_TOOL_DIR) uv run
 SCENARIO ?= rename_order_placed_at
 
 API_PORT ?= 8002
@@ -108,4 +110,3 @@ stop:
 	else \
 	  echo "No repair-agent API pidfile; nothing to stop."; \
 	fi
-

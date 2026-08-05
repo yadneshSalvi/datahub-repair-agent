@@ -453,4 +453,14 @@ def _degradation_reason(exc: Exception) -> str:
         return f"OpenAI authentication failed; check OPENAI_API_KEY. Deterministic fallback used. Error: {text}"
     if "quota" in lowered or "rate limit" in lowered or "429" in lowered:
         return f"OpenAI quota/rate limit prevented agent reasoning; deterministic fallback used. Error: {text}"
-    return f"OpenAI agent or DataHub MCP execution failed; deterministic fallback used. Error: {text}"
+    reason = f"OpenAI agent or DataHub MCP execution failed; deterministic fallback used. Error: {text}"
+    mcp_startup_markers = ("connection closed", "failed to install", "no such file or directory")
+    uvx_failed = "uvx" in lowered and any(
+        marker in lowered for marker in ("exit code", "exited", "non-zero", "nonzero", "status")
+    )
+    if any(marker in lowered for marker in mcp_startup_markers) or uvx_failed:
+        reason += (
+            " The DataHub MCP server could not be started. This is usually a damaged uv cache; "
+            "run `uv cache clean` or delete `$UV_CACHE_DIR` and retry."
+        )
+    return reason
