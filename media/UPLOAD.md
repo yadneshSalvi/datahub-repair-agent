@@ -76,6 +76,12 @@ as 15 references resolved against live DataHub schemas, 6 against the projected 
 schema of models patched earlier in the same run, and 2 locally derived CTE outputs. DataHub
 Cloud's metadata change proposals do not exist in OSS, so the governance write-back uses the
 OSS incident entity plus a dry-run review gate rather than claiming a feature we don't have.
+
+One editing note, for the same reason: the agent's actual run takes about three and a half
+minutes, and the section showing it working is played at roughly 3.4x so it fits the
+narration. Every tool call you see land really landed, in that order, in that run — only the
+waiting between them was shortened. Nothing else in the video is sped up, and no number
+spoken is from any run other than the one on screen.
 ```
 
 ---
