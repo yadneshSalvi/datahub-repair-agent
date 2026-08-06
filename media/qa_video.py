@@ -4,9 +4,15 @@
 Checks, in order of how badly v1 failed them:
 
   1. DURATION      <= 3:00, the Devpost hard limit.
-  2. STATIC        no motionless stretch longer than MAX_STATIC seconds. v1 had three
-                   (~40s, ~40s, ~30s) because the assembler padded short clips by freezing
-                   the last frame. This is the check that would have caught it.
+  2. FROZEN        no genuinely frozen stretch longer than MAX_STATIC seconds.
+                   NOTE: this no longer means "the camera must keep moving". The cut now uses
+                   deliberate locked-off holds — establish, highlight, zoom, then hold still
+                   while the narration explains — because a continuously drifting camera was
+                   rejected as shaky. A hold is CORRECT. What is still a defect is footage
+                   with no life in it at all: a stuck capture repeating one frame, or the
+                   frame-cloning the v1 assembler used to pad short clips. The threshold is
+                   therefore set below the cursor's own motion, so it fires on identical
+                   frames and stays quiet during an intentional hold of a live UI.
   3. LOADING       no frame containing a skeleton/spinner. Approximated by looking for the
                    flat, low-contrast grey blocks a skeleton produces in an otherwise
                    high-contrast dark UI, and reported as frame timestamps to eyeball.
@@ -31,12 +37,13 @@ FPS = 4               # sample rate for the motion signal
 # one. That mis-scored the first v2 cut in both directions and is why this is not tuned lower.
 WIDTH, HEIGHT = 192, 108
 MAX_DURATION = 180.0
-MAX_STATIC = 5.0      # seconds
-# Mean absolute 8-bit delta below which nothing meaningful moved. Calibrated on the shipped
-# cut: pointer-only motion measures ~0.04-0.07, a camera pan or scroll measures >1, and the
-# median frame pair is ~2.3. 0.5 sits in the gap, so this flags genuine freezes without
-# firing on a slow pan across a mostly-white page.
-STATIC_EPS = 0.5
+MAX_STATIC = 6.0      # seconds
+# Mean absolute 8-bit delta below which the picture is genuinely FROZEN, not merely held.
+# Calibrated on the shipped cut: two identical frames measure 0.000, the pointer alone moving
+# over an otherwise still page measures ~0.02-0.07, and a camera move measures >1. 0.006 sits
+# under the pointer, so a locked-off hold of a live screen passes while cloned or stalled
+# frames do not.
+STATIC_EPS = 0.006
 
 
 def probe(path: Path, entries: str) -> str:
