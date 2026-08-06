@@ -54,9 +54,9 @@ tags, an incident, an institutional-memory link, and a process-instance record.
 Chapters
 0:00  What DataHub is
 0:12  The silent failure
-0:24  Break it on purpose
+0:26  Break it on purpose
 0:36  The detector's evidence
-0:45  The agent reads DataHub through MCP
+0:48  The agent reads DataHub through MCP
 1:06  Column-level lineage
 1:16  Three answers, not two
 1:32  Why a model was skipped
@@ -82,6 +82,10 @@ minutes, and the section showing it working is played at roughly 3.4x so it fits
 narration. Every tool call you see land really landed, in that order, in that run — only the
 waiting between them was shortened. Nothing else in the video is sped up, and no number
 spoken is from any run other than the one on screen.
+
+Relatedly, the age chips visible on some screens ("started 28m ago", "1.0.0 · 34 minutes ago")
+are simply because the result screens were filmed a few minutes after the live run finished.
+They refer to the same run you watched start.
 ```
 
 ---

@@ -38,23 +38,67 @@ SCENARIO="rename_order_placed_at"
 mkdir -p "$RAW"
 
 ab() { agent-browser --session "$SESSION" "$@"; }
-inject() { ab eval --stdin < "$MEDIA/demo-cursor.js" >/dev/null 2>&1 || true; }
+
+# `agent-browser eval` exits 0 even when the page throws, so a failed injection is invisible:
+# __demo stays undefined, every motion call silently no-ops, and the shot comes out as a short
+# clip of a static page. That happened to three shots in one pass. Assert the API is really
+# there, retry once, and fail loudly rather than filming nothing.
+inject() {
+  for _ in 1 2 3; do
+    ab eval --stdin < "$MEDIA/demo-cursor.js" >/dev/null 2>&1 || true
+    case "$(ab eval "typeof window.__demo" 2>/dev/null | tr -d '"' | tr -d '[:space:]')" in
+      object) return 0 ;;
+    esac
+    sleep 1
+  done
+  echo "   ERROR: could not inject the demo cursor API into the page" >&2
+  return 1
+}
 js() { ab eval --stdin >/dev/null; }
 banner() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 
-# Extend a shot to `total` ms of elapsed time, in chunks.
+# Pause React Flow's marching-ants edge animation for the duration of a capture.
 #
-# One `eval` may not block for long: the agent-browser daemon gives up on a call that runs
-# past its read timeout and returns "Resource temporarily unavailable (os error 35)", which
-# killed the first capture attempt on the 84-second run shot. Because __demo.mark() lives in
-# page state, calling until() repeatedly with a rising deadline is equivalent to one long
-# call, but every individual round-trip stays short.
-CHUNK_MS=12000
+# Those five animated edge paths repaint the whole canvas every frame and starve Playwright's
+# screencast: measured, 30s of wall time on /impact produced 61 frames (6.1s of video), so
+# every impact shot came out a third of its intended length with nothing logged anywhere.
+# With the animation paused the same page records 189 frames in 21s. The dashes and the amber
+# colour stay, so the graph still reads as a traced path — only the crawl is missing, and it
+# is a capture-performance workaround, not a change to any evidence on screen.
+# The evidence drawer adds `backdrop-blur-xl` over that same canvas, which is costlier still
+# to composite and starved shot 08 even after the edges were paused. Its panel is already 98%
+# opaque, so removing the blur is imperceptible.
+freeze_edge_animation() {
+  ab eval "(()=>{const s=document.createElement('style');s.textContent='.react-flow__edge-path{animation:none !important}*{backdrop-filter:none !important;-webkit-backdrop-filter:none !important}';document.head.appendChild(s);return 1})()" >/dev/null 2>&1 || true
+}
+
+# hold <seconds> [box] — keep the shot moving for this many more seconds.
+#
+# Timed from BASH's wall clock, not from the page's own elapsed counter. Two reasons:
+#
+#  - One `eval` must not block for long, or the agent-browser daemon abandons it with
+#    "Resource temporarily unavailable (os error 35)". So the hold is issued in short bursts.
+#  - Driving the deadline from page state (`__demo.mark()` plus an absolute target) proved
+#    unreliable across a full capture: three shots came out at roughly half length because the
+#    page-side counter was already past the target by the time the hold ran, so every burst
+#    returned instantly and the clip was short. Each burst now asks for a RELATIVE extension,
+#    which cannot be pre-satisfied, and bash decides when to stop.
+BURST_MS=6000
 hold() {
-  local total="$1" box="${2:-null}" t=0
-  while [ "$t" -lt "$total" ]; do
-    t=$((t + CHUNK_MS)); [ "$t" -gt "$total" ] && t="$total"
-    ab eval "__demo.until($t, $box)" >/dev/null
+  local secs="$1" box="${2:-null}" end t0
+  end=$(( $(date +%s) + secs ))
+  while [ "$(date +%s)" -lt "$end" ]; do
+    t0=$(date +%s)
+    ab eval "__demo.until(__demo.elapsed() + $BURST_MS, $box)" >/dev/null 2>&1 || true
+    # A burst that returns far quicker than it was asked to means the page lost the API —
+    # any reload drops it, and `eval` reports the failure only by exiting 0 with an error on
+    # stdout. Left alone the loop then spins as fast as the CLI can round-trip, which starves
+    # Playwright's screencast and yields a clip a third of its intended length with no error
+    # anywhere. Re-inject and back off instead of spinning.
+    if [ $(( $(date +%s) - t0 )) -lt 2 ]; then
+      inject || true
+      sleep 2
+    fi
   done
 }
 
@@ -77,11 +121,16 @@ start_clip() {
   ab eval "__demo.mark(); 1" >/dev/null
 }
 
+# stop_clip <nn> [minimum_seconds] — warn at capture time if the shot came up short, instead
+# of letting assemble.sh discover it much later.
 stop_clip() {
   ab record stop >/dev/null
   local d
-  d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RAW/clip$1.webm" 2>/dev/null || echo "?")
+  d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RAW/clip$1.webm" 2>/dev/null || echo "0")
   echo "   saved clip$1.webm  ${d}s"
+  if [ -n "${2:-}" ] && [ "$(python3 -c "print(1 if $d < $2 else 0)")" = "1" ]; then
+    echo "   WARNING: clip$1 is ${d}s, under the ${2}s this shot needs — re-shoot it" >&2
+  fi
 }
 
 # ---------------------------------------------------------------- demo state
@@ -142,8 +191,8 @@ shot01() { # DataHub: what a catalog is
   return 1;
 })()
 EOF
-  hold 17500 '{x:120,y:300,w:1100,h:400}'
-  stop_clip 01
+  hold 18 '{x:120,y:300,w:1100,h:400}'
+  stop_clip 01 17.7
 }
 
 shot02() { # DataHub: the pipeline map
@@ -158,8 +207,8 @@ shot02() { # DataHub: the pipeline map
   return 1;
 })()
 EOF
-  hold 16500 '{x:700,y:420,w:480,h:480}'
-  stop_clip 02
+  hold 17 '{x:700,y:420,w:480,h:480}'
+  stop_clip 02 16.7
 }
 
 shot03() { # Control Room: apply the drift
@@ -178,8 +227,8 @@ shot03() { # Control Room: apply the drift
   return !!apply;
 })()
 EOF
-  hold 16500 '{x:300,y:280,w:1300,h:260}'
-  stop_clip 03
+  hold 17 '{x:300,y:280,w:1300,h:260}'
+  stop_clip 03 16.8
 }
 
 shot04() { # Schema Diff
@@ -197,8 +246,8 @@ shot04() { # Schema Diff
   return 1;
 })()
 EOF
-  hold 13500 '{x:420,y:380,w:1080,h:300}'
-  stop_clip 04
+  hold 14 '{x:420,y:380,w:1080,h:300}'
+  stop_clip 04 13.9
 }
 
 shot05() { # Control Room: run the agent, MCP chips land
@@ -223,8 +272,8 @@ EOF
   # Film ~84s of the timeline streaming so the MCP chips genuinely land on camera;
   # assemble.sh compresses it to the 23s segment. hold() does the waiting in short
   # round-trips so the browser daemon never times out mid-shot.
-  hold 84000 '{x:1440,y:240,w:440,h:700}'
-  stop_clip 05
+  hold 84 '{x:1440,y:240,w:440,h:700}'
+  stop_clip 05 27.0
   wait_for_run "$RUN_ID" || true
 }
 
@@ -232,6 +281,7 @@ shot06() { # Impact graph: wide
   banner "shot 06 — impact graph wide (narration 10.7s)"
   prewarm "$APP/impact"
   start_clip 06
+  freeze_edge_animation
   js <<'EOF'
 (async () => {
   for (const p of [[560,500],[900,430],[1250,520],[1580,470],[1200,640],[800,600]])
@@ -239,14 +289,15 @@ shot06() { # Impact graph: wide
   return 1;
 })()
 EOF
-  hold 14500 '{x:420,y:300,w:1400,h:420}'
-  stop_clip 06
+  hold 15 '{x:420,y:300,w:1400,h:420}'
+  stop_clip 06 14.7
 }
 
 shot07() { # Impact graph: the three buckets
   banner "shot 07 — three buckets (narration 17.9s)"
   prewarm "$APP/impact"
   start_clip 07
+  freeze_edge_animation
   js <<'EOF'
 (async () => {
   const btns = [...document.querySelectorAll('button')];
@@ -262,14 +313,15 @@ shot07() { # Impact graph: the three buckets
   return 1;
 })()
 EOF
-  hold 21500 '{x:260,y:300,w:1300,h:420}'
-  stop_clip 07
+  hold 22 '{x:260,y:300,w:1300,h:420}'
+  stop_clip 07 21.9
 }
 
 shot08() { # Impact graph: a skipped node's evidence
   banner "shot 08 — skipped node evidence (narration 16.6s)"
   prewarm "$APP/impact"
   start_clip 08
+  freeze_edge_animation
   js <<'EOF'
 (async () => {
   await __demo.scrollBy(null, 430, 1100);
@@ -292,8 +344,8 @@ shot08() { # Impact graph: a skipped node's evidence
   return !!card;
 })()
 EOF
-  hold 20500 '{x:1480,y:220,w:400,h:700}'
-  stop_clip 08
+  hold 30 '{x:1480,y:220,w:400,h:700}'
+  stop_clip 08 20.6
 }
 
 shot09() { # Patches: the diff
@@ -314,8 +366,8 @@ shot09() { # Patches: the diff
   return files.length;
 })()
 EOF
-  hold 21500 '{x:950,y:430,w:900,h:380}'
-  stop_clip 09
+  hold 22 '{x:950,y:430,w:900,h:380}'
+  stop_clip 09 21.6
 }
 
 shot10() { # Patches: validation evidence
@@ -334,8 +386,8 @@ shot10() { # Patches: validation evidence
   return 1;
 })()
 EOF
-  hold 20000 '{x:440,y:400,w:1200,h:380}'
-  stop_clip 10
+  hold 20 '{x:440,y:400,w:1200,h:380}'
+  stop_clip 10 20.1
 }
 
 shot11() { # Pull request
@@ -351,8 +403,8 @@ shot11() { # Pull request
   return 1;
 })()
 EOF
-  hold 13500 '{x:460,y:300,w:1200,h:460}'
-  stop_clip 11
+  hold 14 '{x:460,y:300,w:1200,h:460}'
+  stop_clip 11 14.0
 }
 
 shot12() { # Write-back
@@ -370,8 +422,8 @@ shot12() { # Write-back
   return 1;
 })()
 EOF
-  hold 18500 '{x:440,y:300,w:1300,h:460}'
-  stop_clip 12
+  hold 19 '{x:440,y:300,w:1300,h:460}'
+  stop_clip 12 18.6
 }
 
 shot13() { # DataHub again: the loop is closed
@@ -387,8 +439,8 @@ shot13() { # DataHub again: the loop is closed
   return 1;
 })()
 EOF
-  hold 13500 '{x:200,y:260,w:1000,h:340}'
-  stop_clip 13
+  hold 14 '{x:200,y:260,w:1000,h:340}'
+  stop_clip 13 13.9
 }
 
 # ---------------------------------------------------------------- driver

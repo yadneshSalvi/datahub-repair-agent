@@ -80,10 +80,16 @@ SHOTS=(
   "05|980:552:940:400|3.4||-170,90"
   "06|1400:788:260:60|1||190,140"
   "07|1300:732:260:60|1||230,180"
-  "08|960:540:940:120|1||-190,220"
+  # trim 5 (not 3): the scroll-and-click choreography runs in the first few seconds, and at
+  # the default trim the evidence drawer opened well after the narration had cued it.
+  "08|960:540:940:120|1|5|-190,220"
   "09|1100:620:580:90|1||180,180"
   "10|1228:692:272:388|1||260,-180"
-  "11|1120:630:620:100|1||150,220"
+  # The PR heading ("Repair shop_prod.raw.orders timestamp column rename drift") starts at
+  # source x~190 while the lineage diagram runs to ~1520, which will not fit in a 1120-wide
+  # window. Widened to 1360 (1.41x instead of 1.71x) so the whole title is readable on the
+  # "it opens a real pull request" line.
+  "11|1360:765:160:90|1||40,180"
   "12|1450:816:270:100|1||170,140"
   # Deliberately the SAME framing and pan as shot 01, so the close is a match cut on the open:
   # identical view of the same column list, pristine at 0:08 and repaired at 2:46. The wider
