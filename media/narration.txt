@@ -12,7 +12,7 @@ Here is the result, and it is the heart of this project. Column level lineage ma
 
 So you get three answers, not two. Three files, in amber, genuinely read the changed column and need fixing. Two, in blue, read a renamed copy made upstream, so they need nothing. Seven, in grey, are correctly left alone.
 
-Click one of the seven and it shows its work. It really does sit downstream, but the columns it reads are order I D, quantity and unit price. None of them is the one that changed. Anyone can list everything downstream. Knowing what genuinely breaks is the hard part.
+Click one of the seven and it shows its work. It really does sit downstream, but it reads columns like order I D, quantity and unit price, and not one of them is the column that changed. Anyone can list everything downstream. Knowing what genuinely breaks is the hard part.
 
 The fixes are surgical. Here's the same file, before and after. Only the tokens that changed have moved. The rewrite is done by SQL Glot, a parser that edits the syntax tree directly. The model never writes code. It writes the explanation.
 

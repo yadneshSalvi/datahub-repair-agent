@@ -135,115 +135,112 @@ upstream, so they need nothing.
 Seven in gray are correctly left alone.
 
 31
-00:01:33,015 --> 00:01:35,435
+00:01:33,005 --> 00:01:35,345
 Click one of the seven,
 and it shows its work.
 
 32
-00:01:35,495 --> 00:01:40,235
-It really does sit downstream, but the
-columns it reads are order ID, quantity,
+00:01:35,405 --> 00:01:39,725
+It really does sit downstream, but it
+reads columns like order ID, quantity,
 
 33
-00:01:40,295 --> 00:01:41,435
-and unit price.
+00:01:39,725 --> 00:01:43,105
+and unit price, and not one of
+them is the column that changed.
 
 34
-00:01:41,575 --> 00:01:43,275
-None of them is the one that changed.
-
-35
-00:01:43,415 --> 00:01:45,195
+00:01:43,485 --> 00:01:45,345
 Anyone can list everything downstream.
 
-36
-00:01:45,720 --> 00:01:48,220
+35
+00:01:45,840 --> 00:01:48,260
 Knowing what genuinely
 breaks is the hard part.
 
-37
-00:01:48,360 --> 00:01:49,660
+36
+00:01:48,400 --> 00:01:49,700
 The fixes are surgical.
 
-38
-00:01:50,040 --> 00:01:52,380
+37
+00:01:50,080 --> 00:01:52,420
 Here's the same file before and after.
 
-39
-00:01:52,600 --> 00:01:54,860
+38
+00:01:52,640 --> 00:01:54,900
 Only the tokens that changed have moved.
 
-40
-00:01:55,000 --> 00:02:00,380
-The rewrite is done by SQL Glot, a parser
+39
+00:01:55,040 --> 00:02:00,340
+The rewrite is done by SQL GLOT, a parser
 that edits the syntax tree directly.
 
-41
+40
 00:02:00,795 --> 00:02:02,555
 The model never writes code.
 
-42
+41
 00:02:02,555 --> 00:02:07,275
 It writes the explanation, and nothing
 ships until every column reference checks
 
-43
+42
 00:02:07,275 --> 00:02:07,875
 out.
 
-44
+43
 00:02:07,995 --> 00:02:13,455
 23 of 23 resolved, and it shows where each
 answer came from, live DataHub schemas,
 
-45
+44
 00:02:13,515 --> 00:02:15,935
 the repaired schema, or the query itself.
 
-46
+45
 00:02:16,460 --> 00:02:19,120
 One unresolved reference
 blocks the whole patch.
 
-47
+46
 00:02:19,340 --> 00:02:23,420
 Then it opens a real pull request, a
 proposed code change sent to a person
 
-48
+47
 00:02:23,420 --> 00:02:27,820
 to review, carrying the lineage path
 from the changed column to every file
 
-49
+48
 00:02:27,820 --> 00:02:28,480
 it touched.
 
-50
+49
 00:02:28,755 --> 00:02:33,495
 Finally, it writes the repair back into
 DataHub so the catalog is true again.
 
-51
+50
 00:02:33,795 --> 00:02:38,535
 Lineage corrected, the column documented,
 and an incident logged for sign off.
 
-52
+51
 00:02:38,755 --> 00:02:41,974
 The next engineer or the
 next agent inherits it.
 
-53
+52
 00:02:42,134 --> 00:02:45,114
 Column level lineage to
 pinpoint what genuinely broke.
 
-54
+53
 00:02:45,334 --> 00:02:47,754
 Syntax tree edits so the fix is exact.
 
-55
-00:02:47,974 --> 00:02:50,954
+54
+00:02:47,974 --> 00:02:51,019
 And the catalog as the source
 of truth at both ends.

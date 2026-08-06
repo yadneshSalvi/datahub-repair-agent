@@ -66,8 +66,15 @@ SHOTS=(
   # 01/02/13 are DataHub's own near-white pages. A pan across large flat areas barely
   # registers as pixel change, so they are framed tighter (which also enlarges the text) and
   # panned further than the dark app screens need.
-  "01|1400:788:120:160|1||380,200"
-  "02|1400:788:260:146|1||300,180"
+  # 01/02 are shot against the PRISTINE catalog (post /api/reset, pre-drift) so the opening
+  # genuinely shows order_placed_at un-renamed, no drift tags and no repair docs. An earlier
+  # cut re-shot these after the run had completed, which made the "before" and the closing
+  # "after" visually identical and hid the whole transformation. Never re-shoot these while
+  # a repair is applied. SETTLE=6 on capture, trimmed by 6 here — DataHub paints slowly.
+  # 01 pans mostly vertically: the Name column starts at x=80 in the source, so any horizontal
+  # travel past ~70 clips the very column names the shot exists to show.
+  "01|1400:788:40:150|1|6|60,260"
+  "02|1000:562:200:440|1|6|200,160"
   "03|1400:788:260:180|1||170,70"
   "04|1440:810:280:80|1||150,110"
   "05|980:552:940:400|3.4||-170,90"
@@ -78,7 +85,11 @@ SHOTS=(
   "10|1228:692:272:388|1||260,-180"
   "11|1120:630:620:100|1||150,220"
   "12|1450:816:270:100|1||170,140"
-  "13|1340:754:60:250|1|8|420,200"
+  # Deliberately the SAME framing and pan as shot 01, so the close is a match cut on the open:
+  # identical view of the same column list, pristine at 0:08 and repaired at 2:46. The wider
+  # horizontal pan this used to have swung the Name column out of frame, hiding the one thing
+  # the shot is meant to prove.
+  "13|1400:788:40:150|1|8|60,260"
 )
 
 echo "== fitting clips to narration =="

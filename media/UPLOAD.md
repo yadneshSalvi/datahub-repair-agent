@@ -1,7 +1,7 @@
 # Upload-ready video metadata
 
 **File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:51**, 26.5 MB
-**Captions:** `media/schema-drift-auto-repair-agent.srt` — 55 cues, Deepgram word-level timing
+**Captions:** `media/schema-drift-auto-repair-agent.srt` — 54 cues, Deepgram word-level timing
 **Visibility:** Public (Devpost requires a publicly viewable video under 3 minutes)
 
 ---
