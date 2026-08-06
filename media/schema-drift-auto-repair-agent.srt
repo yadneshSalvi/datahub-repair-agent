@@ -180,67 +180,63 @@ that edits the syntax tree directly.
 The model never writes code.
 
 41
-00:02:02,555 --> 00:02:07,275
-It writes the explanation, and nothing
-ships until every column reference checks
+00:02:02,555 --> 00:02:07,875
+It writes the explanation, and nothing ships
+until every column reference checks out.
 
 42
-00:02:07,275 --> 00:02:07,875
-out.
-
-43
 00:02:07,995 --> 00:02:13,455
 23 of 23 resolved, and it shows where each
 answer came from, live DataHub schemas,
 
-44
+43
 00:02:13,515 --> 00:02:15,935
 the repaired schema, or the query itself.
 
-45
+44
 00:02:16,460 --> 00:02:19,120
 One unresolved reference
 blocks the whole patch.
 
-46
+45
 00:02:19,340 --> 00:02:23,420
 Then it opens a real pull request, a
 proposed code change sent to a person
 
-47
+46
 00:02:23,420 --> 00:02:27,820
 to review, carrying the lineage path
 from the changed column to every file
 
-48
+47
 00:02:27,820 --> 00:02:28,480
 it touched.
 
-49
+48
 00:02:28,755 --> 00:02:33,495
 Finally, it writes the repair back into
 DataHub so the catalog is true again.
 
-50
+49
 00:02:33,795 --> 00:02:38,535
 Lineage corrected, the column documented,
 and an incident logged for sign off.
 
-51
+50
 00:02:38,755 --> 00:02:41,974
 The next engineer or the
 next agent inherits it.
 
-52
+51
 00:02:42,134 --> 00:02:45,114
 Column level lineage to
 pinpoint what genuinely broke.
 
-53
+52
 00:02:45,334 --> 00:02:47,754
 Syntax tree edits so the fix is exact.
 
-54
+53
 00:02:47,974 --> 00:02:51,019
 And the catalog as the source
 of truth at both ends.
