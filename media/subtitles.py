@@ -1,78 +1,157 @@
 #!/usr/bin/env python3
-"""Cut an SRT from the assembled narration using Deepgram word-level timestamps.
+"""Cut the SRT from the written narration, timed by Deepgram word alignment.
 
-Timing comes from the real audio rather than from estimated reading speed, so captions stay
-in sync even where the TTS pauses. Falls back to even per-segment splitting if Deepgram is
-unavailable, so the deliverable is never blocked on a third-party service.
+Two rules, both learned the hard way on earlier cuts:
+
+1. **The words come from the script, never from the transcript.** ASR is a guess; on this
+   narration it writes "incidents API" as "incident's API" and "twenty three" as "23". A
+   recognition error that reaches the screen is a caption of something nobody said.
+2. **No orphan cues.** A previous cut shipped a one-word caption because a sentence ended
+   just after a break; a trailing fragment is now merged back into the cue before it rather
+   than fixed by hand afterwards.
 """
 
 from __future__ import annotations
 
-import json
-import os
-import ssl
+import re
 import subprocess
 import sys
 from pathlib import Path
-from urllib.request import Request, urlopen
 
-try:
-    import certifi
-
-    SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-except ImportError:  # pragma: no cover
-    SSL_CONTEXT = ssl.create_default_context()
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import align
 
 MEDIA = Path(__file__).resolve().parent
 AUDIO = MEDIA / "build" / "audio.wav"
+VIDEO = MEDIA / "schema-drift-auto-repair-agent.mp4"
 SRT = MEDIA / "schema-drift-auto-repair-agent.srt"
-ENDPOINT = "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true"
 
 MAX_CHARS = 74  # two comfortable caption lines; wrap() splits near the middle
 MAX_SECONDS = 5.5
+MIN_WORDS = 3  # anything shorter is a fragment, not a cue
+
+# narration.txt is spelt for the EAR — "M C P", "order placed at", "SQL Glot" — because that
+# is what makes the TTS say them correctly. A reader wants the written form. These collapse
+# a run of script words into the thing a developer would actually type, keeping the first
+# word's start time and the last word's end time, which also stops a cue ever breaking in
+# the middle of an identifier.
+PHRASES: list[tuple[list[str], str]] = [
+    (["M", "C", "P"], "MCP"),
+    (["A", "P", "I"], "API"),
+    (["order", "I", "D"], "order ID"),
+    (["SQL", "Glot"], "sqlglot"),
+    (["order", "placed", "at"], "order_placed_at"),
+    (["order", "created", "at"], "order_created_at"),
+    (["order", "date"], "order_date"),
+    (["column", "level", "lineage"], "column-level lineage"),
+    (["fine", "grained", "lineage"], "fine-grained lineage"),
+    (["catalog", "write", "back"], "catalog write-back"),
+    (["Twenty", "three"], "23"),
+    (["twenty", "three"], "23"),
+]
+
+# Spelt-out figures that are read as prose but belong on screen as numerals, scoped to the
+# one paragraph that recites the validation breakdown so "Three answers, not two" elsewhere
+# keeps reading as English.
+FIGURES: dict[int, dict[str, str]] = {10: {"fifteen": "15", "six": "6", "two": "2"}}
+
+# A cue that ends on one of these reads as a sentence cut in half; it moves to the next cue.
+DANGLING = {"the", "a", "an", "of", "and", "to", "in", "on", "for", "with", "that", "its", "it"}
 
 
 def stamp(seconds: float) -> str:
-    ms = int(round(seconds * 1000))
+    ms = round(seconds * 1000)
     h, ms = divmod(ms, 3_600_000)
     m, ms = divmod(ms, 60_000)
     s, ms = divmod(ms, 1000)
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def words_from_deepgram(key: str) -> list[dict]:
-    request = Request(
-        ENDPOINT,
-        data=AUDIO.read_bytes(),
-        headers={"Authorization": f"Token {key}", "Content-Type": "audio/wav"},
-    )
-    with urlopen(request, timeout=600, context=SSL_CONTEXT) as response:
-        body = json.load(response)
-    alt = body["results"]["channels"][0]["alternatives"][0]
-    return alt.get("words", [])
+def key(text: str) -> str:
+    """Strip punctuation only.
+
+    Deliberately NOT `align.normalise`, which also folds spelt-out numbers to digits for the
+    aligner's benefit — that would turn "Twenty three" into "20 3" and the phrase table
+    below would silently never match.
+    """
+
+    return re.sub(r"[^\w']", "", text.lower())
 
 
-def group(words: list[dict]) -> list[tuple[float, float, str]]:
-    """Pack words into caption cues, breaking on sentence ends, length, or duration."""
+def render(words: list[align.Word]) -> list[align.Word]:
+    """Rewrite the script's ear-spellings into the forms a reader expects."""
 
-    cues: list[tuple[float, float, str]] = []
-    buf: list[str] = []
-    start = end = 0.0
+    out: list[align.Word] = []
+    index = 0
+    while index < len(words):
+        for tokens, replacement in PHRASES:
+            window = words[index : index + len(tokens)]
+            if len(window) != len(tokens):
+                continue
+            if [key(word.text) for word in window] != [token.lower() for token in tokens]:
+                continue
+            if len({word.paragraph for word in window}) != 1:
+                continue
+            tail = window[-1].text
+            trailing = tail[len(tail.rstrip(".,:;!?")) :]
+            out.append(align.Word(window[0].paragraph, window[0].index,
+                                  replacement + trailing, window[0].start, window[-1].end))
+            index += len(tokens)
+            break
+        else:
+            word = words[index]
+            figure = FIGURES.get(word.paragraph, {}).get(key(word.text))
+            if figure:
+                tail = word.text
+                word = align.Word(word.paragraph, word.index,
+                                  figure + tail[len(tail.rstrip(".,:;!?")) :], word.start, word.end)
+            out.append(word)
+            index += 1
+    return out
+
+
+def group(words: list[align.Word]) -> list[tuple[float, float, str]]:
+    cues: list[list[align.Word]] = []
+    buf: list[align.Word] = []
     for word in words:
-        text = word.get("punctuated_word") or word["word"]
-        if not buf:
-            start = float(word["start"])
-        buf.append(text)
-        end = float(word["end"])
-        too_long = len(" ".join(buf)) >= MAX_CHARS
-        too_slow = (end - start) >= MAX_SECONDS
-        sentence_end = text.endswith((".", "?", "!", ":"))
-        if too_long or too_slow or sentence_end:
-            cues.append((start, end, " ".join(buf)))
+        # A caption may not straddle a shot change: the picture cuts, so the words under it
+        # must cut too.
+        if buf and word.paragraph != buf[-1].paragraph:
+            cues.append(buf)
+            buf = []
+        buf.append(word)
+        text = " ".join(item.text for item in buf)
+        span = buf[-1].end - buf[0].start
+        if len(text) >= MAX_CHARS or span >= MAX_SECONDS or word.text.endswith((".", "?", "!", ":")):
+            cues.append(buf)
             buf = []
     if buf:
-        cues.append((start, end, " ".join(buf)))
-    return cues
+        cues.append(buf)
+
+    # Push a trailing function word onto the next cue rather than ending a caption on it.
+    for index in range(len(cues) - 1):
+        while (
+            len(cues[index]) > 1
+            and cues[index][-1].text.lower() in DANGLING
+            and cues[index][-1].paragraph == cues[index + 1][0].paragraph
+        ):
+            cues[index + 1].insert(0, cues[index].pop())
+
+    merged: list[list[align.Word]] = []
+    for cue in cues:
+        if not cue:
+            continue
+        if (
+            merged
+            and len(cue) < MIN_WORDS
+            and merged[-1][-1].paragraph == cue[0].paragraph
+            and len(" ".join(item.text for item in merged[-1] + cue)) <= MAX_CHARS + 16
+        ):
+            merged[-1].extend(cue)
+        else:
+            merged.append(cue)
+
+    return [(cue[0].start, cue[-1].end, " ".join(item.text for item in cue)) for cue in merged]
 
 
 def wrap(text: str) -> str:
@@ -89,38 +168,45 @@ def wrap(text: str) -> str:
     return " ".join(words[:cut]) + "\n" + " ".join(words[cut:])
 
 
-def main() -> None:
-    key = os.environ.get("DEEPGRAM_API_KEY", "").strip()
-    if not key:
-        raise SystemExit("DEEPGRAM_API_KEY is not set; source the repo .env first.")
+def main() -> int:
     if not AUDIO.is_file():
-        raise SystemExit(f"{AUDIO} is missing; run assemble.sh first.")
+        raise SystemExit(f"{AUDIO} is missing; run assemble.py first.")
 
-    words = words_from_deepgram(key)
-    if not words:
-        raise SystemExit("Deepgram returned no words; inspect the response before shipping captions.")
-    cues = group(words)
+    paragraphs = align.read_paragraphs(MEDIA / "narration.txt")
+    duration = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(AUDIO)],
+        capture_output=True, text=True, check=True,
+    )
+    total = float(duration.stdout.strip())
+    words = align.align(
+        paragraphs,
+        align.transcribe(AUDIO, align.api_key(), MEDIA / "build" / "words_final.json"),
+        total,
+    )
+    cues = group(render(words))
 
     lines = []
     for index, (start, end, text) in enumerate(cues, start=1):
         lines.append(f"{index}\n{stamp(start)} --> {stamp(max(end, start + 0.6))}\n{wrap(text)}\n")
     SRT.write_text("\n".join(lines), encoding="utf-8")
-    print(f"wrote {SRT.name}: {len(cues)} cues, last ends {stamp(cues[-1][1])}")
+
+    shortest = min(len(text.split()) for _, _, text in cues)
+    print(f"wrote {SRT.name}: {len(cues)} cues, shortest {shortest} words, "
+          f"last ends {stamp(cues[-1][1])}")
 
     # Captions timed against a different audio file than the one that was muxed would drift
     # silently, and nobody reads an SRT to check. Compare against the shipped video instead.
-    video = MEDIA / "schema-drift-auto-repair-agent.mp4"
-    if video.is_file():
+    if VIDEO.is_file():
         probe = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-             "-of", "csv=p=0", str(video)],
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(VIDEO)],
             capture_output=True, text=True, check=True,
         )
-        duration = float(probe.stdout.strip())
-        overshoot = cues[-1][1] - duration
-        print(f"video is {duration:.1f}s; last cue ends {overshoot:+.1f}s relative to it")
+        video = float(probe.stdout.strip())
+        overshoot = cues[-1][1] - video
+        print(f"video is {video:.1f}s; last cue ends {overshoot:+.1f}s relative to it")
         if overshoot > 0.5:
-            print("WARNING: captions run past the end of the video — regenerate after assemble.sh.")
+            raise SystemExit("captions run past the end of the video — regenerate after assemble.py.")
+    return 0
 
 
 if __name__ == "__main__":

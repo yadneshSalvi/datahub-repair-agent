@@ -1,242 +1,262 @@
 1
-00:00:00,160 --> 00:00:04,340
-Every company's data lives in hundreds
-of tables wired together by pipelines
+00:00:00,240 --> 00:00:01,780
+Analytics runs on columns.
 
 2
-00:00:04,480 --> 00:00:05,780
-nobody fully remembers.
+00:00:02,240 --> 00:00:04,980
+Rename one column upstream
+and nothing crashes.
 
 3
-00:00:06,160 --> 00:00:09,620
-DataHub is an open source
-catalog that keeps that map.
+00:00:05,360 --> 00:00:09,680
+The queries below it keep running, quietly
+returning wrong numbers, and nobody
 
 4
-00:00:09,680 --> 00:00:12,340
-Every table, every column, every pipeline.
-
-5
-00:00:12,765 --> 00:00:15,265
-Here is the failure it
-cannot fix on its own.
-
-6
-00:00:15,405 --> 00:00:17,585
-Someone upstream renames one column.
-
-7
-00:00:17,725 --> 00:00:18,625
-Nothing crashes.
-
-8
-00:00:18,685 --> 00:00:22,925
-The pipelines below keep running, quietly
-producing wrong numbers, and nobody
-
-9
-00:00:22,925 --> 00:00:24,145
+00:00:09,680 --> 00:00:10,980
 notices for days.
 
+5
+00:00:11,280 --> 00:00:12,820
+That is schema drift.
+
+6
+00:00:13,120 --> 00:00:15,540
+DataHub is the open source
+catalog underneath.
+
+7
+00:00:15,825 --> 00:00:20,325
+Our agent reads it through MCP, the
+standard way an agent calls a tool server.
+
+8
+00:00:20,625 --> 00:00:22,325
+Four capabilities do the work:
+
+9
+00:00:22,385 --> 00:00:27,205
+schema metadata, column-level lineage,
+incidents, and catalog write-back.
+
 10
-00:00:24,525 --> 00:00:26,225
-So let's break it on purpose.
+00:00:27,505 --> 00:00:29,205
+So let's cause it on purpose.
 
 11
-00:00:26,580 --> 00:00:28,200
-One change to the live catalog.
+00:00:29,550 --> 00:00:34,050
+One click renames order_placed_at to
+order_created_at in the live catalog.
 
 12
-00:00:28,260 --> 00:00:32,360
-In the orders table, order placed
-at becomes order created at.
+00:00:34,350 --> 00:00:36,530
+This is the real catalog, not a copy.
 
 13
-00:00:32,580 --> 00:00:36,120
-Now the catalog shows drift
-and nobody downstream was told.
+00:00:36,590 --> 00:00:39,970
+The drift is live, and
+nobody downstream was told.
 
 14
-00:00:36,340 --> 00:00:37,880
-Here is the detector's evidence.
+00:00:40,190 --> 00:00:42,210
+Capability one: schema metadata.
 
 15
-00:00:38,020 --> 00:00:40,695
-On the left, the columns
-DataHub had on record.
+00:00:42,615 --> 00:00:46,635
+The agent reads the live schema from DataHub
+and compares it with the committed baseline.
 
 16
-00:00:40,775 --> 00:00:43,115
-On the right, what is
-in the warehouse now.
+00:00:46,935 --> 00:00:47,995
+One row differs.
 
 17
-00:00:43,255 --> 00:00:45,275
-Every row matches but one.
+00:00:48,135 --> 00:00:50,455
+Same type, same position, new name.
 
 18
-00:00:45,575 --> 00:00:47,275
-Now the agent goes to work.
+00:00:50,455 --> 00:00:51,755
+It infers a rename.
 
 19
-00:00:47,335 --> 00:00:49,115
-Watch the timeline on the right.
+00:00:52,055 --> 00:00:53,655
+Now watch the agent work.
 
 20
-00:00:49,175 --> 00:00:54,650
-Those violet chips are its live questions
-to DataHub asked through MCP, the
+00:00:53,655 --> 00:00:57,275
+Every violet chip on the right
+is a real MCP call to DataHub.
 
 21
-00:00:54,650 --> 00:00:57,550
-connector that lets an agent
-query a catalog directly.
+00:00:57,690 --> 00:00:59,070
+Search, to find the table.
 
 22
-00:00:58,090 --> 00:01:02,350
-Search the catalog, list this table's
-columns, trace this column downstream.
+00:00:59,290 --> 00:01:01,950
+List schema fields, for
+its exact column names.
 
 23
-00:01:02,890 --> 00:01:06,270
-Every answer comes from the
-catalog, not a text search.
+00:01:02,090 --> 00:01:04,510
+Get lineage, for the
+changed column, downstream.
 
 24
-00:01:06,585 --> 00:01:09,405
-Here is the result, and it is
-the heart of this project.
+00:01:04,970 --> 00:01:09,310
+Then get lineage paths between,
+four times, to confirm each path.
 
 25
-00:01:09,625 --> 00:01:14,365
-Column level lineage maps exactly which
-downstream code reads this one column,
+00:01:09,530 --> 00:01:12,670
+Capability two, the one that
+matters: column-level lineage.
 
 26
-00:01:14,425 --> 00:01:16,125
-not merely which tables connect.
+00:01:12,985 --> 00:01:16,685
+DataHub records which downstream
+column each column feeds.
 
 27
-00:01:16,425 --> 00:01:18,765
-So you get three answers, not two.
+00:01:16,825 --> 00:01:21,245
+So the agent asks what reads this
+column, not what touches this table.
 
 28
-00:01:19,110 --> 00:01:23,930
-Three files in amber genuinely read
-the changed column and need fixing.
+00:01:21,545 --> 00:01:23,165
+Three answers, not two.
 
 29
-00:01:24,390 --> 00:01:29,450
-Two in blue read a renamed copy made
-upstream, so they need nothing.
+00:01:23,545 --> 00:01:27,245
+Three files, in amber, read the
+changed column and must be patched.
 
 30
-00:01:29,910 --> 00:01:32,650
-Seven in gray are correctly left alone.
+00:01:27,710 --> 00:01:32,910
+Two, in blue, are downstream but read
+order_date, a copy renamed one hop up,
 
 31
-00:01:33,005 --> 00:01:35,345
-Click one of the seven,
-and it shows its work.
+00:01:32,910 --> 00:01:34,050
+so they need nothing.
 
 32
-00:01:35,405 --> 00:01:39,725
-It really does sit downstream, but it
-reads columns like order ID, quantity,
+00:01:34,430 --> 00:01:36,770
+Seven, in grey, are correctly untouched.
 
 33
-00:01:39,725 --> 00:01:43,105
-and unit price, and not one of
-them is the column that changed.
+00:01:37,070 --> 00:01:38,690
+Every skip carries evidence.
 
 34
-00:01:43,485 --> 00:01:45,345
-Anyone can list everything downstream.
+00:01:38,830 --> 00:01:43,125
+This model really is downstream, but it
+reads columns like order ID, quantity
 
 35
-00:01:45,840 --> 00:01:48,260
-Knowing what genuinely
-breaks is the hard part.
+00:01:43,125 --> 00:01:44,185
+and unit price.
 
 36
-00:01:48,400 --> 00:01:49,700
-The fixes are surgical.
+00:01:44,405 --> 00:01:46,505
+None is on the changed column's path.
 
 37
-00:01:50,080 --> 00:01:52,420
-Here's the same file before and after.
+00:01:46,885 --> 00:01:49,045
+Listing everything downstream is easy.
 
 38
-00:01:52,640 --> 00:01:54,900
-Only the tokens that changed have moved.
+00:01:49,045 --> 00:01:51,045
+Knowing what actually breaks is not.
 
 39
-00:01:55,040 --> 00:02:00,340
-The rewrite is done by SQL GLOT, a parser
-that edits the syntax tree directly.
+00:01:51,045 --> 00:01:53,145
+The language model never writes code.
 
 40
-00:02:00,795 --> 00:02:02,555
-The model never writes code.
+00:01:53,285 --> 00:01:57,600
+Patches come from sqlglot, which
+edits the query's syntax tree, so only
 
 41
-00:02:02,555 --> 00:02:07,875
-It writes the explanation, and nothing ships
-until every column reference checks out.
+00:01:57,600 --> 00:02:00,340
+the changed tokens move. Four files.
 
 42
-00:02:07,995 --> 00:02:13,455
-23 of 23 resolved, and it shows where each
-answer came from, live DataHub schemas,
+00:02:00,720 --> 00:02:02,500
+The model's job is the explanation.
 
 43
-00:02:13,515 --> 00:02:15,935
-the repaired schema, or the query itself.
+00:02:02,880 --> 00:02:04,100
+Then a hard gate.
 
 44
-00:02:16,460 --> 00:02:19,120
-One unresolved reference
-blocks the whole patch.
+00:02:04,240 --> 00:02:06,180
+Every column reference must resolve.
 
 45
-00:02:19,340 --> 00:02:23,420
-Then it opens a real pull request, a
-proposed code change sent to a person
+00:02:06,413 --> 00:02:07,920
+23 of 23:
 
 46
-00:02:23,420 --> 00:02:27,820
-to review, carrying the lineage path
-from the changed column to every file
+00:02:07,920 --> 00:02:12,400
+15 against live DataHub schemas, 6
+against the repaired schema this change
 
 47
-00:02:27,820 --> 00:02:28,480
-it touched.
+00:02:12,400 --> 00:02:15,085
+creates, and 2 inside the query itself.
 
 48
-00:02:28,755 --> 00:02:33,495
-Finally, it writes the repair back into
-DataHub so the catalog is true again.
+00:02:15,385 --> 00:02:17,325
+One failure blocks the pull request.
 
 49
-00:02:33,795 --> 00:02:38,535
-Lineage corrected, the column documented,
-and an incident logged for sign off.
+00:02:17,705 --> 00:02:21,965
+It opens a real pull request, a proposed
+code change for a human to review,
 
 50
-00:02:38,755 --> 00:02:41,974
-The next engineer or the
-next agent inherits it.
+00:02:22,185 --> 00:02:26,365
+carrying the lineage path from the
+changed column to every file it touched.
 
 51
-00:02:42,134 --> 00:02:45,114
-Column level lineage to
-pinpoint what genuinely broke.
+00:02:26,640 --> 00:02:31,540
+Capabilities three and four go back into
+DataHub. Corrected fine-grained lineage.
 
 52
-00:02:45,334 --> 00:02:47,754
-Syntax tree edits so the fix is exact.
+00:02:31,760 --> 00:02:33,300
+The repaired column documented.
 
 53
-00:02:47,974 --> 00:02:51,019
-And the catalog as the source
+00:02:33,680 --> 00:02:35,460
+Tags on every repaired asset.
+
+54
+00:02:35,600 --> 00:02:39,300
+An incident raised through the
+incidents API and moved to triage.
+
+55
+00:02:39,360 --> 00:02:41,060
+And the run itself recorded.
+
+56
+00:02:41,435 --> 00:02:45,535
+The next engineer opens the catalog
+and finds the answer already there.
+
+57
+00:02:45,915 --> 00:02:48,575
+column-level lineage to
+find what truly broke.
+
+58
+00:02:48,715 --> 00:02:50,715
+Deterministic edits to fix it.
+
+59
+00:02:50,715 --> 00:02:53,855
+And DataHub as the source
 of truth at both ends.

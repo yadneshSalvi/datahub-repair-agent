@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Split-screen technical panels</title>
+<style>
+  /* The panels borrow the app's own design tokens so a panel and the UI beside it read as
+     one system: same background family, same Inter/JetBrains Mono pairing, same violet.
+     Fonts are loaded from the web app's node_modules so headless Chrome renders exactly
+     what the browser-captured footage rendered. */
+  @font-face {
+    font-family: 'Inter Variable';
+    src: url('../../web/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+    font-weight: 100 900;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('../../web/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('../../web/node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+    font-weight: 500;
+  }
+
+  :root {
+    --bg: #08090b;
+    --surface: #0e1013;
+    --surface-2: #14171c;
+    --border: #1e232b;
+    --border-lit: #2a313b;
+    --text: #e8eaed;
+    --text-dim: #9aa3af;
+    --text-faint: #5c6674;
+    --violet: #9184ff;
+    --ok: #10b981;
+    --patch: #f59e0b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 760px;
+    height: 1080px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter Variable', Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.chip { background: transparent; height: auto; width: auto; }
+
+  .panel {
+    width: 760px;
+    height: 1080px;
+    padding: 46px 40px;
+    display: none;
+    flex-direction: column;
+    /* A hairline of violet down the seam separates panel from footage without a hard rule. */
+    border-right: 2px solid rgba(145, 132, 255, 0.28);
+    background:
+      radial-gradient(120% 60% at 0% 0%, rgba(145, 132, 255, 0.07), transparent 60%),
+      var(--bg);
+  }
+  .panel.on { display: flex; }
+
+  .eyebrow {
+    font-size: 15px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--violet);
+    font-weight: 600;
+  }
+  h1 {
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-top: 10px;
+    line-height: 1.2;
+  }
+  .runtag {
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--text-faint);
+  }
+  .rule { height: 1px; background: var(--border); margin: 26px 0; }
+
+  .label {
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  /* Everything that can appear is laid out from the start and revealed by opacity only,
+     so no state change ever reflows the panel — the eye is not asked to re-find a line. */
+  .step { opacity: 0; }
+  .step.shown { opacity: 1; }
+
+  footer {
+    margin-top: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--text-faint);
+    line-height: 1.6;
+  }
+
+  /* ---------- Panel A: architecture ---------- */
+  .node {
+    border: 1px solid var(--border-lit);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 18px 20px;
+  }
+  .node .title { font-size: 24px; font-weight: 600; }
+  .node .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--text-dim);
+    margin-top: 7px;
+  }
+  .node.hub { border-color: rgba(145, 132, 255, 0.55); background: rgba(145, 132, 255, 0.07); }
+  .wire {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0 12px 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--text-faint);
+  }
+  .wire .arrow { color: var(--violet); font-size: 19px; line-height: 1; }
+  .caps { display: grid; gap: 12px; margin-top: 18px; }
+  .cap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 18px 20px;
+    color: var(--text-faint);
+    font-size: 23px;
+    font-weight: 500;
+  }
+  .cap .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--border-lit); flex: none;
+  }
+  .cap.lit {
+    border-color: var(--violet);
+    background: rgba(145, 132, 255, 0.12);
+    color: var(--text);
+    box-shadow: 0 0 0 1px rgba(145, 132, 255, 0.25), 0 6px 26px rgba(145, 132, 255, 0.14);
+  }
+  .cap.lit .dot { background: var(--violet); box-shadow: 0 0 12px var(--violet); }
+
+  /* ---------- Panel B: MCP calls ---------- */
+  .call {
+    display: flex;
+    gap: 18px;
+    align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 23px;
+    padding: 11px 0;
+  }
+  .call .ts { color: var(--text-faint); font-size: 18px; flex: none; width: 100px; }
+  .call .name { color: var(--text); }
+  .call .args { color: var(--text-faint); }
+  .call .mult { color: var(--violet); font-size: 18px; margin-left: 8px; }
+
+  .fact { font-family: 'JetBrains Mono', monospace; font-size: 21px; line-height: 1.7; }
+  .fact .k { color: var(--text-faint); }
+  .fact .v { color: var(--text); }
+  .fact .hi { color: var(--violet); }
+
+  .chain { font-family: 'JetBrains Mono', monospace; font-size: 21px; margin-top: 22px; }
+  .chain .col { color: var(--text); padding: 5px 0; }
+  .chain .col.src { color: var(--patch); }
+  .chain .hop {
+    color: var(--violet);
+    font-size: 18px;
+    padding: 4px 0 4px 18px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------- Panel C: write-back ---------- */
+  .op { padding: 17px 0; }
+  .op .name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 23px;
+    color: var(--text);
+  }
+  .op .aspect {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 7px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+  }
+  .op .aspect .a { color: var(--violet); }
+  .op .aspect .d { color: var(--text-faint); text-align: right; }
+  .tally {
+    margin-top: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(16, 185, 129, 0.45);
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--ok);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  /* ---------- Feature chips (overlaid on full-frame shots) ---------- */
+  .chipbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    border: 2px solid var(--violet);
+    border-radius: 12px;
+    background: rgba(8, 9, 11, 0.92);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(145, 132, 255, 0.3);
+    padding: 16px 24px;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .chipbox .brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    color: var(--violet);
+    letter-spacing: 0.04em;
+  }
+  .chipbox .bar { width: 1px; height: 26px; background: var(--border-lit); }
+</style>
+</head>
+<body>
+
+<!-- ============================ PANEL A — architecture ============================ -->
+<section class="panel" id="A">
+  <div class="eyebrow">Architecture</div>
+  <h1>How the agent<br>reaches DataHub</h1>
+
+  <div class="rule"></div>
+
+  <div class="step" data-at="2">
+    <div class="node">
+      <div class="title">Schema-Drift Repair Agent</div>
+      <div class="sub">OpenAI Agents SDK · gpt-5.6-sol</div>
+    </div>
+  </div>
+  <div class="step wire" data-at="3"><span class="arrow">&#8595;</span> stdio</div>
+  <div class="step" data-at="3">
+    <div class="node">
+      <div class="title">mcp-server-datahub 0.6.0</div>
+      <div class="sub">Model Context Protocol</div>
+    </div>
+  </div>
+  <div class="step wire" data-at="3"><span class="arrow">&#8595;</span> GraphQL &middot; OpenAPI</div>
+  <div class="step" data-at="1">
+    <div class="node hub">
+      <div class="title">DataHub OSS v1.5.0.6</div>
+      <div class="sub">GMS :8081 &middot; open source catalog</div>
+    </div>
+  </div>
+
+  <div class="caps">
+    <div class="step cap" data-at="4" data-lit="5"><span class="dot"></span>Schema metadata</div>
+    <div class="step cap" data-at="4" data-lit="6"><span class="dot"></span>Column-level lineage</div>
+    <div class="step cap" data-at="4" data-lit="7"><span class="dot"></span>Incidents API</div>
+    <div class="step cap" data-at="4" data-lit="8"><span class="dot"></span>Catalog write-back</div>
+  </div>
+
+  <footer>every read and write in this demo<br>goes through these four</footer>
+</section>
+
+<!-- ============================ PANEL B — real MCP calls ============================ -->
+<section class="panel" id="B">
+  <div class="eyebrow">DataHub MCP</div>
+  <h1>What the agent<br>actually asked</h1>
+  <div class="runtag">run-8cfa00cde7b348109b90ece8ed027904</div>
+
+  <div class="rule"></div>
+
+  <div class="label">Calls, from the run log</div>
+  <div class="step call" data-at="2">
+    <span class="ts">02:49:55</span><span class="name">search</span><span class="args">(&hellip;)</span>
+  </div>
+  <div class="step call" data-at="3">
+    <span class="ts">02:49:57</span><span class="name">list_schema_fields</span><span class="args">(&hellip;)</span>
+  </div>
+  <div class="step call" data-at="4">
+    <span class="ts">02:50:00</span><span class="name">get_lineage</span><span class="args">(&hellip;)</span>
+  </div>
+  <div class="step call" data-at="5">
+    <span class="ts">02:50:07</span><span class="name">get_dataset_queries</span><span class="args">(&hellip;)</span>
+  </div>
+  <div class="step call" data-at="5">
+    <span class="ts">02:50:07</span><span class="name">get_lineage_paths_between</span><span class="args">(&hellip;)</span><span class="mult">&times;4</span>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="label">Recorded in the run</div>
+  <div class="step fact" data-at="3">
+    <span class="k">schema</span> &nbsp;<span class="v">shop_prod.raw.orders</span><br>
+    <span class="hi">order_created_at</span> <span class="k">&middot;</span> <span class="v">TIMESTAMP_NTZ</span> <span class="k">&middot; ordinal 3</span>
+  </div>
+  <div class="step chain" data-at="6">
+    <div class="col src">shop_prod.raw.orders.order_placed_at</div>
+    <div class="hop">&#8595; IDENTITY</div>
+    <div class="col">stg_orders.order_placed_at</div>
+    <div class="hop">&#8595; CAST_DATE</div>
+    <div class="col">fct_orders.order_date</div>
+    <div class="hop">&#8595; IDENTITY</div>
+    <div class="col">mart_daily_revenue.order_date</div>
+  </div>
+
+  <footer class="step" data-at="6">tool arguments were not logged<br>results abbreviated</footer>
+</section>
+
+<!-- ============================ PANEL C — write-back ============================ -->
+<section class="panel" id="C">
+  <div class="eyebrow">Catalog write-back</div>
+  <h1>Six writes,<br>into DataHub itself</h1>
+  <div class="runtag">run-8cfa00cde7b348109b90ece8ed027904</div>
+
+  <div class="rule"></div>
+
+  <div class="step op" data-at="2">
+    <div class="name">update_fine_grained_lineage</div>
+    <div class="aspect"><span class="a">upstreamLineage.fineGrainedLineages</span><span class="d">2 datasets</span></div>
+  </div>
+  <div class="step op" data-at="3">
+    <div class="name">document_column</div>
+    <div class="aspect"><span class="a">editableSchemaMetadata</span><span class="d">3 fields</span></div>
+  </div>
+  <div class="step op" data-at="4">
+    <div class="name">tag_assets</div>
+    <div class="aspect"><span class="a">globalTags</span><span class="d">source + 2 repaired</span></div>
+  </div>
+  <div class="step op" data-at="5">
+    <div class="name">raise_incident</div>
+    <div class="aspect"><span class="a">incidentInfo &mdash; ACTIVE / TRIAGE</span><span class="d">urn:li:incident:fc3a618c&hellip;</span></div>
+  </div>
+  <div class="step op" data-at="6">
+    <div class="name">attach_migration_doc</div>
+    <div class="aspect"><span class="a">institutionalMemory</span><span class="d">PR + migration guide</span></div>
+  </div>
+  <div class="step op" data-at="6">
+    <div class="name">record_run</div>
+    <div class="aspect"><span class="a">dataProcessInstance</span><span class="d">SUCCESS</span></div>
+  </div>
+
+  <div class="step" data-at="6"><div class="tally">6 of 6 succeeded</div></div>
+
+  <footer class="step" data-at="6">written to the live catalog,<br>where the next engineer looks</footer>
+</section>
+
+<!-- ============================ Feature chips ============================ -->
+<div id="chips" style="display:none">
+  <div class="chipbox" data-chip="schema"><span class="brand">DataHub</span><span class="bar"></span>Schema metadata</div>
+  <div class="chipbox" data-chip="lineage"><span class="brand">DataHub</span><span class="bar"></span>Column-level lineage</div>
+  <div class="chipbox" data-chip="validate"><span class="brand">DataHub</span><span class="bar"></span>Live schemas + projected repair</div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const chip = params.get('chip');
+
+  if (chip) {
+    // Chip mode: shrink the document to the chip so the PNG has no dead margin and can be
+    // overlaid with an exact offset.
+    document.body.className = 'chip';
+    const box = document.querySelector(`[data-chip="${chip}"]`);
+    document.body.innerHTML = '';
+    document.body.appendChild(box);
+    box.style.margin = '0';
+    document.documentElement.style.cssText = 'width:auto;height:auto;background:transparent';
+  } else {
+    const id = params.get('panel');
+    const state = Number(params.get('state') || 1);
+    const panel = document.getElementById(id);
+    panel.classList.add('on');
+    panel.querySelectorAll('.step').forEach((step) => {
+      if (state >= Number(step.dataset.at)) step.classList.add('shown');
+      if (step.dataset.lit && state >= Number(step.dataset.lit)) step.classList.add('lit');
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # Upload-ready video metadata
 
-**File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:51**, 26.5 MB
-**Captions:** `media/schema-drift-auto-repair-agent.srt` — 53 cues, Deepgram word-level timing
+**File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:54** (174.009 s), 15,818,113 bytes
+**Captions:** `media/schema-drift-auto-repair-agent.srt` — 59 cues, worded from the script, timed by Deepgram word alignment
 **Visibility:** Public (Devpost requires a publicly viewable video under 3 minutes)
 
 ---
@@ -22,48 +22,58 @@ Schema-Drift Auto-Repair Agent | Built with DataHub
 ## Description
 
 ```
-Someone upstream renames one column. Nothing crashes. The pipelines below keep running,
-quietly producing wrong numbers, and nobody notices for days.
+Someone upstream renames one column. Nothing crashes. The queries below it keep running,
+quietly returning wrong numbers, and nobody notices for days.
 
-This agent closes that loop. It detects the drift, uses DataHub's column-level lineage to work
-out the real blast radius, rewrites the affected dbt SQL, schema.yml and Airflow DAG code with
-sqlglot syntax-tree edits, checks every column reference against the catalog before anything
-ships, opens a pull request carrying the lineage evidence, and writes the repair back into
-DataHub.
+This agent closes that loop, and the video walks the machinery in order: what DataHub
+provides, how the agent uses each capability at the moment it uses it, and what the run
+actually produced.
 
-What's different here: column-level lineage gives three answers, not two. In this run, three
-files genuinely read the changed column and need fixing; two marts sit downstream but read a
-renamed copy made further upstream, so they need nothing at all; and seven models are
-correctly left alone — each with a stated reason you can open and read. Anyone can list
-everything downstream of a table. Knowing what genuinely breaks is the hard part.
+Four DataHub capabilities do the work, each named on screen as it is used:
 
-The language model never writes the code. sqlglot locates the references and only the changed
-tokens move, so the diff is one a human will actually review. Every column reference is then
-resolved before the pull request can open — 23 of 23 in this run — and a single unresolvable
-reference blocks the whole patch. The gate is enforced, not advisory.
+1. Schema metadata — the live schema for the drifted table is read from DataHub and compared
+   with the committed baseline. order_placed_at is gone; order_created_at is present with the
+   same type at the same ordinal position, so the change is inferred as a rename.
+2. Column-level lineage — the capability that makes the whole thing possible. DataHub records
+   which downstream COLUMN each column feeds, so the agent can ask what reads this column
+   rather than what touches this table. That is what turns two answers into three.
+3. Incidents API — the repair is filed as an OSS incident entity, moved to TRIAGE.
+4. Catalog write-back — corrected fine-grained lineage, column documentation, tags, an
+   institutional-memory link and a process-instance record, all written into the catalog where
+   the next engineer looks.
+
+Reads go through the DataHub MCP server (search, list_schema_fields, get_lineage on the changed
+column, get_dataset_queries, get_lineage_paths_between). Writes go through the DataHub Python
+SDK. In the run shown here: 8 DataHub MCP calls and 6 repair-stage tool calls, 14 in total.
+
+What column-level lineage buys you, in this run: three files genuinely read the changed column
+and need patching; two marts sit downstream but read order_date — a copy renamed one hop
+further up, visible on screen as a CAST_DATE edge — so they need nothing at all; and seven
+models are correctly left alone, each with a stated reason you can open and read. Anyone can
+list everything downstream of a table. Knowing what genuinely breaks is the hard part.
+
+The language model never writes the code. sqlglot locates the references and rewrites the
+syntax tree, so only the changed tokens move and the diff is one a human will actually review.
+Every column reference is then resolved before the pull request can open — 23 of 23 in this
+run — and a single unresolvable reference blocks the whole patch. The gate is enforced, not
+advisory.
 
 Built for "Build with DataHub: The Agent Hackathon" — Metadata-Aware Code Generation &
 Development track.
 
-DataHub is used on both sides. Reads go through the DataHub MCP server (search,
-list_schema_fields, get_lineage on the changed column, get_dataset_queries,
-get_lineage_paths_between — 9 DataHub MCP calls out of 15 total tool calls in the run you see
-here). Writes go through the DataHub Python SDK: fine-grained lineage, column documentation,
-tags, an incident, an institutional-memory link, and a process-instance record.
-
 Chapters
-0:00  What DataHub is
-0:12  The silent failure
-0:26  Break it on purpose
-0:36  The detector's evidence
-0:48  The agent reads DataHub through MCP
-1:06  Column-level lineage
-1:16  Three answers, not two
-1:32  Why a model was skipped
-1:48  Surgical patches
-2:04  The validation gate
-2:19  The pull request
-2:28  Writing the repair back
+0:00  The problem: schema drift
+0:12  What DataHub provides
+0:27  Breaking it on purpose
+0:40  Capability 1 — schema metadata
+0:51  The agent's MCP calls
+1:09  Capability 2 — column-level lineage
+1:21  Three answers, not two
+1:37  Why a model was skipped
+1:51  Deterministic patches
+2:02  The validation gate
+2:17  The pull request
+2:26  Capabilities 3 and 4 — write-back
 2:41  What makes it work
 
 Code, setup instructions and generated example artifacts:
@@ -71,19 +81,29 @@ https://github.com/yadneshSalvi/datahub-repair-agent
 
 Apache 2.0. Runs against a local DataHub Core quickstart — no DataHub Cloud required.
 
-Note on honesty, since the video states numbers: the "23 of 23" figure breaks down on screen
-as 15 references resolved against live DataHub schemas, 6 against the projected post-repair
-schema of models patched earlier in the same run, and 2 locally derived CTE outputs. DataHub
-Cloud's metadata change proposals do not exist in OSS, so the governance write-back uses the
-OSS incident entity plus a dry-run review gate rather than claiming a feature we don't have.
+Note on honesty, since the video states numbers. Every figure comes from one run,
+run-8cfa00cde7b348109b90ece8ed027904, which is the only run id visible anywhere in the cut.
+"23 of 23" breaks down on screen as 15 references resolved against live DataHub schemas, 6
+against the projected post-repair schema of models patched earlier in the same run, and 2
+locally derived CTE outputs; the narration states that breakdown aloud. DataHub Cloud's
+metadata change proposals do not exist in OSS, so the governance write-back uses the OSS
+incident entity plus a dry-run review gate rather than claiming a feature we don't have.
 
-One editing note, for the same reason: the agent's actual run takes about three and a half
-minutes, and the section showing it working is played at roughly 3.4x so it fits the
-narration. Every tool call you see land really landed, in that order, in that run — only the
-waiting between them was shortened. Nothing else in the video is sped up, and no number
-spoken is from any run other than the one on screen.
+About the split-screen technical panels. The call list, the schema fact and the column-lineage
+chain shown beside the footage are rendered from that run's own persisted record — tool names,
+their order and their wall-clock timestamps are verbatim from the run log, and the lineage
+chain (IDENTITY → CAST_DATE → IDENTITY) is verbatim from the recorded lineage edges. The agent
+runs with SDK tracing disabled, so the raw MCP request and response payloads were never
+persisted; rather than reconstruct them, every argument value the run did not record is shown
+as an ellipsis, and the panel says so on screen: "tool arguments were not logged, results
+abbreviated".
 
-Relatedly, the age chips visible on some screens ("started 28m ago", "1.0.0 · 34 minutes ago")
+One editing note: the agent's actual run takes about three and a half minutes, and the section
+showing it working is played at roughly 3.4x so it fits the narration. Every tool call you see
+land really landed, in that order, in that run — only the waiting between them was shortened.
+Nothing else in the video is sped up.
+
+Relatedly, the age chips visible on some screens ("started 25m ago", "1.0.0 · 34 minutes ago")
 are simply because the result screens were filmed a few minutes after the live run finished.
 They refer to the same run you watched start.
 ```
@@ -108,38 +128,63 @@ Everything is scripted; nothing is hand-edited.
    narration paragraph into `media/raw/`. `media/tts.py 9 12` re-cuts only those paragraphs.
 3. `media/verify_tts.py` — **transcribes every WAV back with Deepgram and diffs it against the
    script.** Non-zero exit if any word is mangled. This is not optional: it is what caught
-   "lineage to find" being read as "lineage to define" and "one file before" as "one filed
-   before", both of which would otherwise have shipped.
+   "a real write to real DataHub" being heard as "a real right", and "nothing here is mocked"
+   as "nothing here is marked" — both reworded rather than shipped.
 4. `media/capture.sh` — drives agent-browser through 13 shots into `media/raw/clipNN.webm`.
    `capture.sh 08` re-shoots a single shot. `SETTLE=8 capture.sh 13` for pages that paint slowly.
-5. `media/assemble.sh` — trims each clip's settle window, applies the per-shot crop, camera pan
-   and speed ramp, concatenates, tempo-fits the narration to ≤3:00, muxes.
-6. `media/subtitles.py` — Deepgram `nova-2` word timestamps → SRT, checked against the video length.
-7. `media/qa_video.py` — gates duration, static stretches, black frames and loading frames.
+   **This cut did not re-capture anything**: it re-narrates and re-frames the same masters.
+5. `media/panels/render.py` — renders each split-screen panel state and each feature chip to PNG
+   with headless Chrome, at 2x, using the web app's own fonts and colour tokens.
+6. `media/assemble.py` — trims each clip's settle window, applies the camera treatment or the
+   split-screen composition, cuts panel reveals to word timestamps, concatenates, tempo-fits the
+   narration to under 3:00, muxes. Hard-errors if the finished file reaches 3:00.
+7. `media/subtitles.py` — SRT worded from `narration.txt`, timed by Deepgram word alignment
+   (`media/align.py`), checked against the video length.
+8. `media/qa_video.py` — gates duration, static stretches, black frames and loading frames.
    `media/contact_sheet.sh` renders a sheet for eyeballing.
 
 ### Things that will bite you if you re-cut this
 
 - **Playwright's video pipeline ignores CSS `zoom`** on both `<html>` and `<body>`. A
   screenshot shows the zoom; the recorded frame does not. Close-ups are therefore made by
-  cropping real pixels in `assemble.sh`, not by zooming the browser.
+  cropping real pixels in `assemble.py`, not by zooming the browser.
 - **ffmpeg's crop is `w:h:x:y`**, not `x:y:w:h`. Getting it backwards yields a tiny sliver from
   the wrong corner, which reads as a black frame with a thin bar.
+- **A still image overlaid without `-loop 1` is a single frame at t=0.** With a `fade=t=in`
+  on it, that frame is rendered at alpha 0 and `overlay` then repeats it forever — the graphic
+  never appears, and nothing errors. Both feature chips were invisible until this was fixed.
+- **`align.normalise` folds spelt-out numbers to digits** so the aligner can match "twenty
+  three" to "23". Reusing it to match caption phrases silently breaks them, because the phrase
+  table is written in words. Caption matching uses its own punctuation-only key.
 - **`agent-browser eval` must not block for long** — a single 84-second call returns
   `Resource temporarily unavailable (os error 35)`. Long holds are chunked.
-- **Most screens do not scroll at the window level** at 1080p; the long content lives in inner
-  `overflow:auto` containers, and `/impact` and `/writeback` have no scroller at all. That is
-  why each shot carries a slow camera pan — otherwise those shots are motionless.
 - **Run the agent with a healthy uv cache.** A damaged one makes `uvx mcp-server-datahub` fail,
   and the agent then degrades silently to deterministic mode with zero MCP tool calls — the run
   still succeeds, so the only symptom is that the tool chips never appear.
+
+### Evidence lockstep — every claim, and where it comes from
+
+All from `run-8cfa00cde7b348109b90ece8ed027904`, verified against the persisted run record:
+
+| Claim | Source |
+|---|---|
+| 3 require patch / 2 unaffected / 7 skipped, 12 scanned, 3 hops | `impact.stats` |
+| 4 patched files | `events[30].data.files` |
+| 23 of 23 references — 15 live catalog, 6 projected repair, 2 local CTE | `patches[].references[].source` |
+| 6 write-backs, all succeeded | `writeback[]` |
+| 8 DataHub MCP calls, 6 repair-stage calls, 14 total | `events[]` where `data.source` is set |
+| IDENTITY → CAST_DATE → IDENTITY column chain | `impact.graph.edges` |
+| incident `urn:li:incident:fc3a618c…`, ACTIVE / TRIAGE | `events[45]`, `writeback[3]` |
+
+The MCP call count is deliberately never spoken: it varies between runs, and a spoken number
+that a re-run would contradict is exactly what the honest-claims rule exists to prevent.
 
 ### Constraints enforced while recording
 
 - Agent + MCP mode, verified `degraded: false` on the filmed run, so the MCP chips are real
 - Demo reset before the take — a second run over already-repaired code correctly narrows to
   fewer patches, so an un-reset retake would show smaller numbers than the narration states
-- Every spoken number checked against the filmed run: 3 / 2 / 7, 4 patches, 23/23 references
-  (15 live catalog, 6 projected repair, 2 local CTE), 6 write-backs, 15 tool calls
 - The **Run repair agent** button is genuinely clicked on camera; the run on screen is the run
   every later number is read from
+- The catalog is left pristine after filming, so a judge who clones the repo starts where the
+  video starts

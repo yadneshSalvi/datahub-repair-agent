@@ -41,3 +41,4 @@ demo-warehouse/.repair-agent/reset_audit.json
 media/*.webm
 media/raw/
 media/build/
+media/panels/png/

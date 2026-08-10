@@ -68,7 +68,7 @@ def grey_frames(path: Path) -> list[bytes]:
 
 
 def mean_abs_delta(a: bytes, b: bytes) -> float:
-    return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
+    return sum(abs(x - y) for x, y in zip(a, b, strict=True)) / len(a)
 
 
 def main() -> int:
