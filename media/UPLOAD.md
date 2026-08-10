@@ -1,6 +1,6 @@
 # Upload-ready video metadata
 
-**File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:54** (174.009 s), 16,397,184 bytes
+**File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:54** (174.009 s), 12,775,441 bytes
 **Captions:** `media/schema-drift-auto-repair-agent.srt` — 61 cues, worded from the script, timed by Deepgram word alignment
 **Visibility:** Public (Devpost requires a publicly viewable video under 3 minutes)
 
@@ -100,12 +100,16 @@ persisted; rather than reconstruct them, every argument value the run did not re
 as an ellipsis, and the panel says so on screen: "tool arguments were not logged, results
 abbreviated".
 
-One editing note, disclosed on screen as well as here: the agent's actual run takes about
-three and a half minutes, and the section showing it working runs at 3.7x real time, labelled
-in-frame for the whole of that shot. Every tool call you see land really landed, in that order,
-in that run — only the waiting between them was shortened. The rest of the picture carries a
-1.09x fit applied uniformly so the footage matches the narration length; no other shot is
-time-compressed.
+One editing note, disclosed on screen as well as here. Nothing in this video is time-compressed.
+The run section opens on live footage of the run being started — the Run repair agent button is
+genuinely clicked on camera, at real speed — and then holds on the run's execution timeline,
+which is the real UI rendering that run's recorded event log through the app's own
+`?run=<run-id>` view. The frame is labelled "the same run, replayed" for the whole of that hold.
+The reason it is a replay rather than live footage: streamed live, the timeline auto-scrolls
+between two positions every twelve seconds, and the resulting churn made the calls harder to
+read rather than easier. Held still, with a border stepping onto each call as it is named, the
+same information is legible. The picture carries a uniform 1.09x fit so the footage matches the
+narration length, and that is the only rate change anywhere in the cut.
 
 Relatedly, the age chips visible on some screens ("started 25m ago", "1.0.0 · 34 minutes ago")
 are simply because the result screens were filmed a few minutes after the live run finished.
@@ -139,6 +143,9 @@ Everything is scripted; nothing is hand-edited.
    **This cut did not re-capture anything**: it re-narrates and re-frames the same masters.
 5. `media/panels/render.py` — renders each split-screen panel state and each feature chip to PNG
    with headless Chrome, at 2x, using the web app's own fonts and colour tokens.
+   `media/raw/replay05.png` is a 1920x1080 screenshot of `/?run=run-8cfa00cde7b348109b90ece8ed027904`
+   scrolled to the execution timeline; it is retained with the video masters and is what the
+   run section's held frame is cut from.
 6. `media/assemble.py` — trims each clip's settle window, applies the camera treatment or the
    split-screen composition, cuts panel reveals to word timestamps, concatenates, tempo-fits the
    narration to under 3:00, muxes. Hard-errors if the finished file reaches 3:00.
@@ -188,7 +195,10 @@ that a re-run would contradict is exactly what the honest-claims rule exists to 
 - Agent + MCP mode, verified `degraded: false` on the filmed run, so the MCP chips are real
 - Demo reset before the take — a second run over already-repaired code correctly narrows to
   fewer patches, so an un-reset retake would show smaller numbers than the narration states
-- The **Run repair agent** button is genuinely clicked on camera; the run on screen is the run
-  every later number is read from
+- The **Run repair agent** button is genuinely clicked on camera, at real speed; the run on
+  screen is the run every later number is read from
+- The execution timeline is that run's recorded event log, opened read-only through the app's
+  `?run=<run-id>` view and held still. The agent was NOT re-run to film it — a second run would
+  mint a second run id and different numbers, and would have dirtied the catalog
 - The catalog is left pristine after filming, so a judge who clones the repo starts where the
   video starts

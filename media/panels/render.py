@@ -26,7 +26,7 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 # panel id -> number of reveal states
 PANELS = {"A": 8, "B": 6, "C": 6}
 CHIPS = {"schema": (900, 200), "lineage": (900, 200), "validate": (900, 200),
-         "speed": (760, 260)}
+         "replay": (760, 260)}
 
 
 def shot(url: str, out: Path, width: int, height: int, transparent: bool) -> None:

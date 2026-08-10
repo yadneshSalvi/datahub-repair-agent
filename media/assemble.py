@@ -40,7 +40,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -63,7 +63,7 @@ SPLIT_AT = EST + LEAD - MOVE / 2  # dissolve starts here, lands at EST + LEAD + 
 STATE_FADE = 0.25  # cross-dissolve between two panel states
 CHIP_FADE = 0.3
 CHIP_HOLD = 5.0
-SPEED_CHIP_CLAIM = 3.7  # must match the rate written into panels.html
+BORDER_LEAD = 0.8  # a border lands on its target this long before the word that names it
 TARGET = float(__import__("os").environ.get("TARGET", 174))
 
 
@@ -80,7 +80,17 @@ class Shot:
     chip_at: tuple[int, str] | float | None = None  # (paragraph, phrase), or seconds in
     chip_hold: float | None = None  # None = CHIP_HOLD; otherwise how long it stays
     chip_xy: tuple[int, int] = (60, 946)
+    # A shot may replace its own footage in the pane with a still of a persisted run, with
+    # violet borders stepping between the things the narration names.
+    still: str | None = None
+    still_crop: str | None = None  # x:y:w:h on the 1920x1080 still
+    borders: list[tuple[str, tuple[int, int, int, int]]] = field(default_factory=list)
     want: float = 0.0  # narration length, filled in from the audio
+
+    @property
+    def n_paragraph(self) -> int:
+        """Shots are 1:1 with narration paragraphs, so the index is the shot number."""
+        return int(self.n)
     start: float = 0.0  # start time in the assembled narration
     panel_offset: float = 0.0  # where this shot begins inside its panel's own timeline
     panel_len: float = 0.0
@@ -102,11 +112,25 @@ SHOTS: list[Shot] = [
     # run id on camera, and the diff rows get 1.18x while we are here.
     Shot("04", 3, 1, "275:428:1615:56", "262:55:1623:913", chip="schema",
          chip_at=(4, "schema metadata."), chip_xy=(110, 880)),
-    # The speed disclosure has to be legible in the same frame as the sped footage, not only
-    # in the upload metadata. It sits in the dark column left of the execution panel, which is
-    # empty both before and after the split-screen dissolve, and it stays up for the whole shot.
-    Shot("05", 3, 3.4, "1319:490:601:560", "1319:490:601:560", panel="B",
-         chip="speed", chip_at=0.4, chip_xy=(790, 900)),
+    # The live timeline auto-scrolled between two positions on a ~12 second cycle, which at
+    # 3.4x read as the picture churning up and down — the one thing the user rejected in this
+    # cut. Measured before changing anything: the master never holds still for more than 3.5s,
+    # so there was no settled window to re-frame and the pane had to be re-shot.
+    #
+    # It is re-shot WITHOUT re-running the agent: `?run=<id>` opens the persisted run
+    # read-only, so the pane is a still of the real UI rendering the real recorded event log,
+    # held perfectly locked, with borders stepping between the calls as they are named. The
+    # establish still comes from the master at 1x and still contains the genuine click, so
+    # nothing in this shot is time-compressed any more and the speed disclosure is gone.
+    Shot("05", 6, 1, "1319:490:601:560", "1319:490:601:560", panel="B",
+         chip="replay", chip_at=2.6, chip_hold=17.0, chip_xy=(790, 900),
+         still="replay05.png", still_crop="1311:225:609:567",
+         borders=[
+             ("Search, to find", (1291, 232, 286, 69)),
+             ("List schema fields,", (1291, 304, 532, 69)),
+             ("Get lineage, for", (1291, 377, 532, 69)),
+             ("Then get lineage paths", (1291, 522, 503, 69)),
+         ]),
     # The panel stays on screen across this cut, so shot 06 opens already split — no second
     # entrance for something that never left.
     Shot("06", 3, 1, None, "175:75:1010:940", panel="B", panel_mode="hold"),
@@ -239,6 +263,15 @@ def shot_filters(shot: Shot) -> tuple[list[str], list[str], str]:
         cx, cy, cw, ch = scale2(shot.crop)
         inputs += ["-i", str(BUILD / f"panel_{shot.panel}_{shot.n}.mp4")]
         chain.append("[1:v]fps=30,setsar=1[pan]")
+        if shot.still:
+            # The pane is a locked still of a persisted run rather than live footage, so it
+            # comes from its own input and the master is used only for the establish.
+            inputs += ["-loop", "1", "-t", f"{shot.want:.3f}", "-i", str(RAW / shot.still)]
+            sx, sy, sw, sh = scale2(shot.still_crop)
+            chain.append(
+                f"[2:v]fps=30,scale={W * 2}:{H * 2}:flags=bicubic,setsar=1,"
+                f"crop={sw}:{sh}:{sx}:{sy},scale={PANE_W * 2}:{H * 2}:flags=lanczos[pane]"
+            )
         if shot.panel_mode == "hold":
             # No entrance: the panel is already there from the previous shot.
             chain.append(
@@ -247,16 +280,23 @@ def shot_filters(shot: Shot) -> tuple[list[str], list[str], str]:
             chain.append("[pan][pane]hstack=inputs=2[full]")
         else:
             hx, hy, hw, hh = scale2(shot.highlight)
-            chain.append("[m]split=2[m1][m2]")
-            chain.append(
-                f"[m1]drawbox=x={hx}:y={hy}:w={hw}:h={hh}:color={HL_COLOR}@1:thickness=8"
-                f":enable='between(t,{EST},{SPLIT_AT + MOVE:.3f})',"
-                f"trim=0:{SPLIT_AT + MOVE:.3f},setpts=PTS-STARTPTS[wide]"
-            )
-            chain.append(
-                f"[m2]crop={cw}:{ch}:{cx}:{cy},scale={PANE_W * 2}:{H * 2}:flags=lanczos,"
-                f"trim=start={SPLIT_AT:.3f},setpts=PTS-STARTPTS,setsar=1[pane]"
-            )
+            if shot.still:
+                chain.append(
+                    f"[m]drawbox=x={hx}:y={hy}:w={hw}:h={hh}:color={HL_COLOR}@1:thickness=8"
+                    f":enable='between(t,{EST},{SPLIT_AT + MOVE:.3f})',"
+                    f"trim=0:{SPLIT_AT + MOVE:.3f},setpts=PTS-STARTPTS[wide]"
+                )
+            else:
+                chain.append("[m]split=2[m1][m2]")
+                chain.append(
+                    f"[m1]drawbox=x={hx}:y={hy}:w={hw}:h={hh}:color={HL_COLOR}@1:thickness=8"
+                    f":enable='between(t,{EST},{SPLIT_AT + MOVE:.3f})',"
+                    f"trim=0:{SPLIT_AT + MOVE:.3f},setpts=PTS-STARTPTS[wide]"
+                )
+                chain.append(
+                    f"[m2]crop={cw}:{ch}:{cx}:{cy},scale={PANE_W * 2}:{H * 2}:flags=lanczos,"
+                    f"trim=start={SPLIT_AT:.3f},setpts=PTS-STARTPTS,setsar=1[pane]"
+                )
             chain.append("[pan][pane]hstack=inputs=2[split]")
             chain.append(
                 f"[wide][split]xfade=transition=fade:duration={MOVE}:offset={SPLIT_AT:.3f}[full]"
@@ -303,20 +343,6 @@ def main() -> int:
 
     tempo = build_audio()
 
-    # The on-shot chip claims "3.7x real time". The true rate is the shot's own setpts times
-    # the tempo fit applied to the whole picture at the end, so it moves whenever the
-    # narration length moves. Assert it rather than trusting a number baked into a PNG.
-    sped = next(shot for shot in SHOTS if shot.chip == "speed")
-    sped.chip_hold = None  # set below, once the segment length is known
-    effective = sped.speed * tempo
-    if abs(effective - SPEED_CHIP_CLAIM) > 0.05:
-        raise SystemExit(
-            f"the speed chip says {SPEED_CHIP_CLAIM}x but the shot actually runs at "
-            f"{effective:.2f}x ({sped.speed} setpts x {tempo:.4f} tempo fit) — "
-            f"re-render media/panels/panels.html with the true rate before shipping."
-        )
-    print(f"== speed chip: claims {SPEED_CHIP_CLAIM}x, actual {effective:.2f}x ==")
-
     # Panels and chips are cut against the RAW narration, because each shot is rendered at
     # its raw segment length and the whole picture is retimed by `tempo` at the very end.
     words = align.align(
@@ -330,7 +356,6 @@ def main() -> int:
         shot.want = probe(RAW / f"seg_{shot.n}.wav")
         shot.start = clock
         clock += shot.want
-    sped.chip_hold = sped.want - 1.0
 
     print("== fitting clips to narration ==")
     failed = False
@@ -381,11 +406,28 @@ def main() -> int:
         args = ["ffmpeg", "-y", "-v", "error", "-ss", str(shot.trim),
                 "-i", str(RAW / f"clip{shot.n}.webm"), *inputs]
 
+        # Borders step between the things the narration names, one at a time, on a locked
+        # picture. Same grammar as the camera highlights: the border arrives just before the
+        # word, so the eye is already on the right chip when it is named.
+        if shot.borders:
+            marks = [align.find(words, shot.n_paragraph, phrase) - shot.start - BORDER_LEAD
+                     for phrase, _ in shot.borders]
+            for index, (_, (bx, by, bw, bh)) in enumerate(shot.borders):
+                start = max(0.0, marks[index])
+                end = marks[index + 1] if index + 1 < len(marks) else shot.want
+                chain.append(
+                    f"[{label}]drawbox=x={bx}:y={by}:w={bw}:h={bh}:color={HL_COLOR}@1"
+                    f":thickness=4:enable='between(t,{start:.3f},{end:.3f})'[bd{index}]"
+                )
+                label = f"bd{index}"
+
         if shot.chip:
             at = (shot.chip_at if isinstance(shot.chip_at, (int, float))
                   else align.find(words, *shot.chip_at) - shot.start)
             hold = shot.chip_hold if shot.chip_hold is not None else CHIP_HOLD
-            index = 1 + (len(inputs) // 2)
+            # Count real inputs: `inputs` is not a list of pairs any more, because a still
+            # carries -loop and -t alongside its -i.
+            index = inputs.count("-i") + 1
             # `-loop 1` matters: a bare image input is a single frame at t=0, which the fade
             # filter renders at alpha 0 and overlay then repeats forever — a chip that never
             # appears, silently.
