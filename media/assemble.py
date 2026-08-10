@@ -63,6 +63,7 @@ SPLIT_AT = EST + LEAD - MOVE / 2  # dissolve starts here, lands at EST + LEAD + 
 STATE_FADE = 0.25  # cross-dissolve between two panel states
 CHIP_FADE = 0.3
 CHIP_HOLD = 5.0
+SPEED_CHIP_CLAIM = 3.7  # must match the rate written into panels.html
 TARGET = float(__import__("os").environ.get("TARGET", 174))
 
 
@@ -76,7 +77,8 @@ class Shot:
     panel: str | None = None  # A / B / C
     panel_mode: str = "enter"  # enter = dissolve in; hold = already split at frame 0
     chip: str | None = None
-    chip_at: tuple[int, str] | None = None  # (paragraph, anchor phrase)
+    chip_at: tuple[int, str] | float | None = None  # (paragraph, phrase), or seconds in
+    chip_hold: float | None = None  # None = CHIP_HOLD; otherwise how long it stays
     chip_xy: tuple[int, int] = (60, 946)
     want: float = 0.0  # narration length, filled in from the audio
     start: float = 0.0  # start time in the assembled narration
@@ -100,7 +102,11 @@ SHOTS: list[Shot] = [
     # run id on camera, and the diff rows get 1.18x while we are here.
     Shot("04", 3, 1, "275:428:1615:56", "262:55:1623:913", chip="schema",
          chip_at=(4, "schema metadata."), chip_xy=(110, 880)),
-    Shot("05", 3, 3.4, "1319:490:601:560", "1319:490:601:560", panel="B"),
+    # The speed disclosure has to be legible in the same frame as the sped footage, not only
+    # in the upload metadata. It sits in the dark column left of the execution panel, which is
+    # empty both before and after the split-screen dissolve, and it stays up for the whole shot.
+    Shot("05", 3, 3.4, "1319:490:601:560", "1319:490:601:560", panel="B",
+         chip="speed", chip_at=0.4, chip_xy=(790, 900)),
     # The panel stays on screen across this cut, so shot 06 opens already split — no second
     # entrance for something that never left.
     Shot("06", 3, 1, None, "175:75:1010:940", panel="B", panel_mode="hold"),
@@ -297,6 +303,20 @@ def main() -> int:
 
     tempo = build_audio()
 
+    # The on-shot chip claims "3.7x real time". The true rate is the shot's own setpts times
+    # the tempo fit applied to the whole picture at the end, so it moves whenever the
+    # narration length moves. Assert it rather than trusting a number baked into a PNG.
+    sped = next(shot for shot in SHOTS if shot.chip == "speed")
+    sped.chip_hold = None  # set below, once the segment length is known
+    effective = sped.speed * tempo
+    if abs(effective - SPEED_CHIP_CLAIM) > 0.05:
+        raise SystemExit(
+            f"the speed chip says {SPEED_CHIP_CLAIM}x but the shot actually runs at "
+            f"{effective:.2f}x ({sped.speed} setpts x {tempo:.4f} tempo fit) — "
+            f"re-render media/panels/panels.html with the true rate before shipping."
+        )
+    print(f"== speed chip: claims {SPEED_CHIP_CLAIM}x, actual {effective:.2f}x ==")
+
     # Panels and chips are cut against the RAW narration, because each shot is rendered at
     # its raw segment length and the whole picture is retimed by `tempo` at the very end.
     words = align.align(
@@ -310,6 +330,7 @@ def main() -> int:
         shot.want = probe(RAW / f"seg_{shot.n}.wav")
         shot.start = clock
         clock += shot.want
+    sped.chip_hold = sped.want - 1.0
 
     print("== fitting clips to narration ==")
     failed = False
@@ -361,7 +382,9 @@ def main() -> int:
                 "-i", str(RAW / f"clip{shot.n}.webm"), *inputs]
 
         if shot.chip:
-            at = align.find(words, *shot.chip_at) - shot.start
+            at = (shot.chip_at if isinstance(shot.chip_at, (int, float))
+                  else align.find(words, *shot.chip_at) - shot.start)
+            hold = shot.chip_hold if shot.chip_hold is not None else CHIP_HOLD
             index = 1 + (len(inputs) // 2)
             # `-loop 1` matters: a bare image input is a single frame at t=0, which the fade
             # filter renders at alpha 0 and overlay then repeats forever — a chip that never
@@ -371,7 +394,7 @@ def main() -> int:
             chain.append(
                 f"[{index}:v]fps=30,scale=iw/2:ih/2,format=rgba,setsar=1,"
                 f"fade=t=in:st={at:.3f}:d={CHIP_FADE}:alpha=1,"
-                f"fade=t=out:st={at + CHIP_HOLD:.3f}:d={CHIP_FADE}:alpha=1[chip]"
+                f"fade=t=out:st={at + hold:.3f}:d={CHIP_FADE}:alpha=1[chip]"
             )
             chain.append(f"[{label}][chip]overlay={shot.chip_xy[0]}:{shot.chip_xy[1]}[cam2]")
             label = "cam2"

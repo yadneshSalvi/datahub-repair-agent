@@ -15,6 +15,7 @@ timestamps are borrowed; unmatched script words are interpolated between their n
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -61,10 +62,21 @@ def normalise(token: str) -> str:
 
 
 def transcribe(audio: Path, key: str, cache: Path | None = None) -> list[dict]:
-    """Return Deepgram's word list, caching it so a re-assemble costs no API call."""
+    """Return Deepgram's word list, caching it so a re-assemble costs no API call.
 
+    The cache is keyed on the AUDIO's hash, not on its path. An earlier version keyed on the
+    path alone and happily served the previous take's word times after three narration
+    segments were re-recorded — every panel reveal and every caption would have been cut to
+    words from an audio file that no longer existed. It surfaced only because one anchor
+    landed at a negative offset and ffmpeg refused it; a smaller edit would have shipped
+    silently mis-timed.
+    """
+
+    digest = hashlib.sha256(audio.read_bytes()).hexdigest()
     if cache and cache.is_file():
-        return json.loads(cache.read_text())["words"]
+        cached = json.loads(cache.read_text())
+        if cached.get("sha256") == digest:
+            return cached["words"]
     request = Request(
         ENDPOINT,
         data=audio.read_bytes(),
@@ -76,7 +88,7 @@ def transcribe(audio: Path, key: str, cache: Path | None = None) -> list[dict]:
     if not words:
         raise SystemExit("Deepgram returned no words; inspect the response before shipping.")
     if cache:
-        cache.write_text(json.dumps({"words": words}, indent=1))
+        cache.write_text(json.dumps({"sha256": digest, "words": words}, indent=1))
     return words
 
 

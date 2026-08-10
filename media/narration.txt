@@ -6,15 +6,15 @@ So let's cause it on purpose. One click renames order placed at to order created
 
 Capability one: schema metadata. The agent reads the live schema from DataHub and compares it with the committed baseline. One row differs. Same type, same position, new name. It infers a rename.
 
-Now watch the agent work. Every violet chip on the right is a real M C P call to DataHub. Search, to find the table. List schema fields, for its exact column names. Get lineage, for the changed column, downstream. Then get lineage paths between, four times, to confirm each path.
+Now watch the agent work. Each chip on the right is a real call the agent made. The ones labelled datahub go through M C P. Search, to find the table. List schema fields, for its exact column names. Get lineage, for the changed column, downstream. Then get lineage paths between, four times, to confirm each path.
 
 Capability two, the one that matters: column level lineage. DataHub records which downstream column each column feeds. So the agent asks what reads this column, not what touches this table.
 
-Three answers, not two. Three files, in amber, read the changed column and must be patched. Two, in blue, are downstream but read order date, a copy renamed one hop up, so they need nothing. Seven, in grey, are correctly untouched.
+Three answers, not two. Three assets, in amber, read the changed column and must be patched. Two, in blue, are downstream but read order date, a copy renamed one hop up, so they need nothing. Seven, in grey, are correctly untouched.
 
 Every skip carries evidence. This model really is downstream, but it reads columns like order I D, quantity and unit price. None is on the changed column's path. Listing everything downstream is easy. Knowing what actually breaks is not.
 
-The language model never writes code. Patches come from SQL Glot, which edits the query's syntax tree, so only the changed tokens move. Four files. The model's job is the explanation.
+The language model never writes code. Patches come from SQL Glot, which edits the query's syntax tree, so only the changed tokens move. Four files across those three assets. The model's job is the explanation.
 
 Then a hard gate. Every column reference must resolve. Twenty three of twenty three: fifteen against live DataHub schemas, six against the repaired schema this change creates, and two inside the query itself. One failure blocks the pull request.
 

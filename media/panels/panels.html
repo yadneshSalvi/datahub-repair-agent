@@ -239,6 +239,23 @@
     letter-spacing: 0.04em;
   }
   .chipbox .bar { width: 1px; height: 26px; background: var(--border-lit); }
+
+  .speedbox {
+    display: inline-block;
+    border: 2px solid var(--violet);
+    border-radius: 12px;
+    background: rgba(8, 9, 11, 0.9);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(145, 132, 255, 0.3);
+    padding: 14px 20px;
+    color: var(--text);
+  }
+  .speedbox .rate { font-size: 30px; font-weight: 600; letter-spacing: -0.01em; }
+  .speedbox .why {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
 </style>
 </head>
 <body>
@@ -289,21 +306,21 @@
 
   <div class="rule"></div>
 
-  <div class="label">Calls, from the run log</div>
+  <div class="label">Calls, timed from run start</div>
   <div class="step call" data-at="2">
-    <span class="ts">02:49:55</span><span class="name">search</span><span class="args">(&hellip;)</span>
+    <span class="ts">+6s</span><span class="name">search</span><span class="args">(&hellip;)</span>
   </div>
   <div class="step call" data-at="3">
-    <span class="ts">02:49:57</span><span class="name">list_schema_fields</span><span class="args">(&hellip;)</span>
+    <span class="ts">+8s</span><span class="name">list_schema_fields</span><span class="args">(&hellip;)</span>
   </div>
   <div class="step call" data-at="4">
-    <span class="ts">02:50:00</span><span class="name">get_lineage</span><span class="args">(&hellip;)</span>
+    <span class="ts">+12s</span><span class="name">get_lineage</span><span class="args">(&hellip;)</span>
   </div>
   <div class="step call" data-at="5">
-    <span class="ts">02:50:07</span><span class="name">get_dataset_queries</span><span class="args">(&hellip;)</span>
+    <span class="ts">+18s</span><span class="name">get_dataset_queries</span><span class="args">(&hellip;)</span>
   </div>
   <div class="step call" data-at="5">
-    <span class="ts">02:50:07</span><span class="name">get_lineage_paths_between</span><span class="args">(&hellip;)</span><span class="mult">&times;4</span>
+    <span class="ts">+18s</span><span class="name">get_lineage_paths_between</span><span class="args">(&hellip;)</span><span class="mult">&times;4</span>
   </div>
 
   <div class="rule"></div>
@@ -369,6 +386,10 @@
   <div class="chipbox" data-chip="schema"><span class="brand">DataHub</span><span class="bar"></span>Schema metadata</div>
   <div class="chipbox" data-chip="lineage"><span class="brand">DataHub</span><span class="bar"></span>Column-level lineage</div>
   <div class="chipbox" data-chip="validate"><span class="brand">DataHub</span><span class="bar"></span>Live schemas + projected repair</div>
+  <div class="speedbox" data-chip="speed">
+    <div class="rate">3.7&times; real time</div>
+    <div class="why">waiting between tool calls shortened</div>
+  </div>
 </div>
 
 <script>

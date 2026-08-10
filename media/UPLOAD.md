@@ -1,7 +1,7 @@
 # Upload-ready video metadata
 
-**File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:54** (174.009 s), 15,818,113 bytes
-**Captions:** `media/schema-drift-auto-repair-agent.srt` — 59 cues, worded from the script, timed by Deepgram word alignment
+**File:** `media/schema-drift-auto-repair-agent.mp4` — 1920×1080, H.264/AAC, **2:54** (174.009 s), 16,397,184 bytes
+**Captions:** `media/schema-drift-auto-repair-agent.srt` — 61 cues, worded from the script, timed by Deepgram word alignment
 **Visibility:** Public (Devpost requires a publicly viewable video under 3 minutes)
 
 ---
@@ -46,8 +46,8 @@ Reads go through the DataHub MCP server (search, list_schema_fields, get_lineage
 column, get_dataset_queries, get_lineage_paths_between). Writes go through the DataHub Python
 SDK. In the run shown here: 8 DataHub MCP calls and 6 repair-stage tool calls, 14 in total.
 
-What column-level lineage buys you, in this run: three files genuinely read the changed column
-and need patching; two marts sit downstream but read order_date — a copy renamed one hop
+What column-level lineage buys you, in this run: three assets genuinely read the changed column
+and need patching — four files across them, because one dbt model carries its schema.yml too; two marts sit downstream but read order_date — a copy renamed one hop
 further up, visible on screen as a CAST_DATE edge — so they need nothing at all; and seven
 models are correctly left alone, each with a stated reason you can open and read. Anyone can
 list everything downstream of a table. Knowing what genuinely breaks is the hard part.
@@ -91,17 +91,21 @@ incident entity plus a dry-run review gate rather than claiming a feature we don
 
 About the split-screen technical panels. The call list, the schema fact and the column-lineage
 chain shown beside the footage are rendered from that run's own persisted record — tool names,
-their order and their wall-clock timestamps are verbatim from the run log, and the lineage
-chain (IDENTITY → CAST_DATE → IDENTITY) is verbatim from the recorded lineage edges. The agent
+their order and their timings are verbatim from the run log, and the lineage chain
+(IDENTITY → CAST_DATE → IDENTITY) is verbatim from the recorded lineage edges. Call times are
+shown as offsets from the start of the run (+6s, +8s, +12s, +18s) rather than as wall-clock
+times, so they cannot be misread against the relative clocks the product's own UI displays. The agent
 runs with SDK tracing disabled, so the raw MCP request and response payloads were never
 persisted; rather than reconstruct them, every argument value the run did not record is shown
 as an ellipsis, and the panel says so on screen: "tool arguments were not logged, results
 abbreviated".
 
-One editing note: the agent's actual run takes about three and a half minutes, and the section
-showing it working is played at roughly 3.4x so it fits the narration. Every tool call you see
-land really landed, in that order, in that run — only the waiting between them was shortened.
-Nothing else in the video is sped up.
+One editing note, disclosed on screen as well as here: the agent's actual run takes about
+three and a half minutes, and the section showing it working runs at 3.7x real time, labelled
+in-frame for the whole of that shot. Every tool call you see land really landed, in that order,
+in that run — only the waiting between them was shortened. The rest of the picture carries a
+1.09x fit applied uniformly so the footage matches the narration length; no other shot is
+time-compressed.
 
 Relatedly, the age chips visible on some screens ("started 25m ago", "1.0.0 · 34 minutes ago")
 are simply because the result screens were filmed a few minutes after the live run finished.

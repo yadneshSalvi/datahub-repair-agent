@@ -25,7 +25,8 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 # panel id -> number of reveal states
 PANELS = {"A": 8, "B": 6, "C": 6}
-CHIPS = ("schema", "lineage", "validate")
+CHIPS = {"schema": (900, 200), "lineage": (900, 200), "validate": (900, 200),
+         "speed": (760, 260)}
 
 
 def shot(url: str, out: Path, width: int, height: int, transparent: bool) -> None:
@@ -64,9 +65,9 @@ def main() -> int:
     # Chips render into an oversized transparent window with the box pinned at the top-left,
     # so overlaying the whole PNG at (x, y) puts the chip's corner exactly at (x, y) and the
     # surrounding transparency costs nothing.
-    for chip in CHIPS:
+    for chip, (width, height) in CHIPS.items():
         out = OUT / f"chip_{chip}.png"
-        shot(f"{base}?chip={chip}", out, 900, 200, True)
+        shot(f"{base}?chip={chip}", out, width, height, True)
         print(f"  chip {chip} -> {out.name}")
 
     print(f"\n{len(list(OUT.glob('*.png')))} PNGs in {OUT}")
