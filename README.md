@@ -154,6 +154,12 @@ identical patches with templated prose; the UI says so plainly.
 6. **Write-Back**: six DataHub actions, each with a working deep link.
 7. **Reset demo** puts everything back.
 
+Every run is written to `.repair-agent/runs/`, and **`?run=<run-id>` opens one of them by id** —
+for example <http://localhost:3002/?run=run-8cfa00cde7b348109b90ece8ed027904>. Use it to read a
+finished run's timeline, patches and write-back after the catalog has been reset, when the live
+view has correctly moved on. It is read-only: nothing is re-executed, and because the drift it
+repaired is no longer live, the drift banner stays empty rather than claiming otherwise.
+
 Everything above also works from the CLI, which can drive the entire demo without the UI:
 
 ```bash

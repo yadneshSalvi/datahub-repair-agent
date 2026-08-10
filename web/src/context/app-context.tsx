@@ -9,6 +9,8 @@ interface AppContextValue {
   healthError: string | null
   currentRun: RepairRun | null
   currentRunLoading: boolean
+  /** True when the run on screen was opened by id rather than being the live one. */
+  replay: boolean
   streamConnected: boolean
   streamError: string | null
   setCurrentRun: (run: RepairRun | null) => void
@@ -48,6 +50,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [healthLoading, setHealthLoading] = useState(true)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [currentRun, setCurrentRun] = useState<RepairRun | null>(null)
+  const [replay, setReplay] = useState(false)
   const [currentRunLoading, setCurrentRunLoading] = useState(true)
   const [resetting, setResetting] = useState(false)
   const [resetVersion, setResetVersion] = useState(0)
@@ -67,6 +70,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshHealth()
+
+    // Runs are persisted to disk, but the Control Room only adopts one while the catalog is
+    // actually drifting — otherwise a finished run would sit on screen claiming to be current
+    // long after the drift it repaired was reset. That is right for the live view and wrong
+    // for going back to look at a run afterwards: once the catalog is clean, a run you still
+    // have on disk becomes unreachable through the UI.
+    //
+    // `?run=<id>` is the way back in. It loads that one run by id and shows it read-only,
+    // whatever the catalog currently says. Nothing else changes: with no parameter the page
+    // behaves exactly as before.
+    const requested = new URLSearchParams(window.location.search).get('run')
+    if (requested) {
+      setReplay(true)
+      api.run(requested)
+        .then(setCurrentRun)
+        .catch(() => setCurrentRun(null))
+        .finally(() => setCurrentRunLoading(false))
+      return
+    }
+
     Promise.all([api.runs(), api.drift()])
       .then(([runs, drifts]) => setCurrentRun(drifts.length ? runs[0] ?? null : null))
       .catch(() => setCurrentRun(null))
@@ -129,6 +152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     healthError,
     currentRun,
     currentRunLoading,
+    replay,
     streamConnected: stream.connected,
     streamError: stream.error,
     setCurrentRun,
@@ -141,6 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }), [
     currentRun,
     currentRunLoading,
+    replay,
     health,
     healthError,
     healthLoading,

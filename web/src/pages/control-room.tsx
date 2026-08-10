@@ -180,7 +180,7 @@ function RunTimeline({
 }
 
 export function ControlRoom() {
-  const { currentRun, currentRunLoading, health, resetVersion, startRunState, streamConnected, streamError } = useApp()
+  const { currentRun, currentRunLoading, health, replay, resetVersion, startRunState, streamConnected, streamError } = useApp()
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [drifts, setDrifts] = useState<DriftEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -209,7 +209,11 @@ export function ControlRoom() {
     if (health && !health.llm_available) setUseLlm(false)
   }, [health])
 
-  const activeDrift = drifts[0] ?? currentRun?.drift ?? null
+  // Falling back to the run's own drift keeps the live view populated while a run is in
+  // flight. In replay the same fallback would be a lie: it renders "live in DataHub" for a
+  // drift that was reset hours ago. A replayed run therefore only ever reports drift the
+  // catalog is reporting right now, which for a clean catalog is none.
+  const activeDrift = drifts[0] ?? (replay ? null : currentRun?.drift ?? null)
   const counts = useMemo(() => referenceCounts(currentRun), [currentRun])
 
   const applyScenario = async (scenario: Scenario) => {
