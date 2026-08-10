@@ -1,5 +1,7 @@
 # YouTube upload: copy-paste pack
 
+**Published:** <https://youtu.be/TpO9yW8wesI>
+
 **Video file:** `schema-drift-auto-repair-agent.mp4` · **Captions:** upload
 `schema-drift-auto-repair-agent.srt` (English) ·
 **Thumbnail:** `schema-drift-auto-repair-agent-thumbnail.png` (1280x720) · **Visibility:** Public
