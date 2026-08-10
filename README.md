@@ -22,7 +22,7 @@ Generation & Development*.
 
 ## Demo
 
-**Watch the 2:51 demo:** [`media/schema-drift-auto-repair-agent.mp4`](media/schema-drift-auto-repair-agent.mp4)
+**Watch the 2:54 demo:** [`media/schema-drift-auto-repair-agent.mp4`](media/schema-drift-auto-repair-agent.mp4)
 (captions in [`media/schema-drift-auto-repair-agent.srt`](media/schema-drift-auto-repair-agent.srt)).
 A YouTube link will replace this once the submission video is published.
 
@@ -87,7 +87,9 @@ deliberately.
 | **GraphQL** | Fine-grained lineage detail (`fineGrainedLineages`, `transformOperation`) and incidents | `datahub_io/client.py`, `writeback.py` |
 | **Python SDK writes** | `upstreamLineage` + `fineGrainedLineages`, `EditableSchemaMetadata` column docs, tags, `InstitutionalMemory`, `DataProcessInstance` | `datahub_io/writeback.py` |
 
-A single repair run fires **9–12 MCP tool calls**, visible live in the UI timeline.
+The run in the demo fires **14 tool calls, 8 of them DataHub MCP reads**, visible live in
+the UI timeline. The count varies between runs — the agent decides how many lineage paths
+are worth confirming — so no spoken claim in the video depends on it.
 
 **Column-level lineage is the load-bearing dependency**, and one undocumented rule makes or
 breaks it: a fine-grained edge only renders if **both** the upstream and downstream dataset
