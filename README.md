@@ -22,11 +22,6 @@ Generation & Development*.
 
 ## Demo
 
-**Try it live: <https://datahub-repair.yadneshsalvi.com>** — hosted demo against a live
-DataHub OSS catalog (tick the human-verification checkbox; it keeps crawlers away from our
-LLM keys). The catalog it writes into is browsable at
-<https://datahub-catalog.yadneshsalvi.com> (sign in `datahub` / `datahub`).
-
 **Watch the 2:54 demo: <https://youtu.be/TpO9yW8wesI>**
 Also committed in-repo: [`media/schema-drift-auto-repair-agent.mp4`](media/schema-drift-auto-repair-agent.mp4)
 (captions in [`media/schema-drift-auto-repair-agent.srt`](media/schema-drift-auto-repair-agent.srt)).
