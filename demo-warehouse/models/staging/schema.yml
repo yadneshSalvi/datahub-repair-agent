@@ -10,9 +10,9 @@ models:
       - name: customer_id
         description: Customer who placed the order.
         tests: [not_null]
-      - name: order_placed_at
-        description: Timestamp at which the order was placed.
-        tests: [not_null]
+      - name: order_created_at
+        description: Timestamp at which the order was placed. Renamed by schema-drift-repair from `order_placed_at` to `order_created_at`.
+        tests: [not_null, unique]
       - name: order_status
         description: Current lifecycle status of the order.
         tests: [not_null]

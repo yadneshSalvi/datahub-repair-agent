@@ -9,7 +9,7 @@ items as (
 select
     o.order_id,
     o.customer_id,
-    cast(o.order_placed_at as date) as order_date,
+    cast(o.order_created_at as date) as order_date,
     o.order_status,
     coalesce(i.item_count, 0) as item_count,
     o.net_amount as net_revenue
